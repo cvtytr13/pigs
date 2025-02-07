@@ -54,6 +54,10 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        .button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
         .post {
             background: white;
             padding: 15px;
@@ -100,17 +104,21 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
-    <!-- الشريط العلوي -->
     <div class="navbar">
         <button onclick="goToHome()">الصفحة الرئيسية</button>
         <button onclick="goToActiveUsers()">المستخدمين النشطين</button>
+        <button onclick="logout()" id="logoutButton" style="display: none;">تسجيل الخروج</button>
     </div>
 
     <div class="container">
-        <!-- قسم تسجيل الدخول -->
         <div id="authSection" class="auth-container">
             <h2>تسجيل الدخول</h2>
             <input type="email" id="emailInput" class="auth-input" placeholder="البريد الإلكتروني">
@@ -119,43 +127,43 @@
             <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب جديد</button>
         </div>
 
-        <!-- قسم المنشورات -->
         <div id="contentSection" style="display: none;">
             <div class="post-form">
                 <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
-                <button onclick="createPost()" class="button">نشر</button>
+                <div class="loading" id="postLoading">جاري النشر...</div>
+                <button onclick="createPost()" class="button" id="postButton">نشر</button>
             </div>
             <div id="posts"></div>
         </div>
     </div>
 
-    <!-- إضافة مكتبة Firebase -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
     <script>
-        // تكوين Firebase - قم باستبدال هذه القيم بقيم مشروعك
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
             authDomain: "messge102.firebaseapp.com",
-            databaseURL: "https://messge102.firebaseio.com", 
             projectId: "messge102",
-            storageBucket: "messge102.firebasestorage",
+            storageBucket: "messge102.appspot.com",
             messagingSenderId: "353675326399",
             appId: "1:353675326399:web:1836fcb73faf9d0f39670a"
         };
 
-        // تهيئة Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // وظائف المصادقة
         function register() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
             
+            if (!email || !password) {
+                alert("الرجاء إدخال البريد الإلكتروني وكلمة المرور");
+                return;
+            }
+
             auth.createUserWithEmailAndPassword(email, password)
                 .then((userCredential) => {
                     console.log("تم إنشاء الحساب بنجاح");
@@ -169,6 +177,11 @@
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
             
+            if (!email || !password) {
+                alert("الرجاء إدخال البريد الإلكتروني وكلمة المرور");
+                return;
+            }
+
             auth.signInWithEmailAndPassword(email, password)
                 .then((userCredential) => {
                     console.log("تم تسجيل الدخول بنجاح");
@@ -178,56 +191,89 @@
                 });
         }
 
-        // مراقبة حالة المصادقة
+        function logout() {
+            auth.signOut().then(() => {
+                console.log("تم تسجيل الخروج بنجاح");
+            }).catch((error) => {
+                console.error("خطأ في تسجيل الخروج:", error);
+            });
+        }
+
         auth.onAuthStateChanged((user) => {
+            const logoutButton = document.getElementById('logoutButton');
             if (user) {
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
+                logoutButton.style.display = 'block';
                 loadPosts();
             } else {
                 document.getElementById('authSection').style.display = 'block';
                 document.getElementById('contentSection').style.display = 'none';
+                logoutButton.style.display = 'none';
             }
         });
 
-        // وظائف المنشورات
         async function createPost() {
-            const content = document.getElementById('postContent').value;
+            const postButton = document.getElementById('postButton');
+            const postLoading = document.getElementById('postLoading');
+            const content = document.getElementById('postContent').value.trim();
             const user = auth.currentUser;
             
-            if (content && user) {
-                try {
-                    await db.collection('posts').add({
-                        content: content,
-                        userId: user.uid,
-                        userEmail: user.email,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    document.getElementById('postContent').value = '';
-                    loadPosts();
-                } catch (error) {
-                    console.error("خطأ في إنشاء المنشور:", error);
-                }
+            if (!content) {
+                alert("الرجاء كتابة محتوى المنشور");
+                return;
+            }
+
+            if (!user) {
+                alert("الرجاء تسجيل الدخول أولاً");
+                return;
+            }
+
+            try {
+                postButton.disabled = true;
+                postLoading.style.display = 'block';
+
+                await db.collection('posts').add({
+                    content: content,
+                    userId: user.uid,
+                    userEmail: user.email,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                document.getElementById('postContent').value = '';
+                await loadPosts();
+            } catch (error) {
+                console.error("خطأ في إنشاء المنشور:", error);
+                alert("حدث خطأ أثناء النشر. الرجاء المحاولة مرة أخرى.");
+            } finally {
+                postButton.disabled = false;
+                postLoading.style.display = 'none';
             }
         }
 
         async function loadPosts() {
             const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = '';
+            postsDiv.innerHTML = '<div class="loading">جاري تحميل المنشورات...</div>';
             
             try {
                 const snapshot = await db.collection('posts')
                     .orderBy('timestamp', 'desc')
+                    .limit(20)
                     .get();
+                
+                postsDiv.innerHTML = '';
                 
                 snapshot.forEach((doc) => {
                     const post = doc.data();
+                    const postDate = post.timestamp ? new Date(post.timestamp.toDate()).toLocaleString('ar-SA') : 'الآن';
+                    
                     const postElement = `
                         <div class="post">
                             <div class="post-header">
                                 <img src="/api/placeholder/40/40" alt="صورة المستخدم" class="post-avatar">
                                 <div>
                                     <strong>${post.userEmail}</strong>
+                                    <div style="font-size: 0.8em; color: #65676b;">${postDate}</div>
                                 </div>
                             </div>
                             <div class="post-content">
@@ -242,19 +288,31 @@
                     `;
                     postsDiv.innerHTML += postElement;
                 });
+
+                if (snapshot.empty) {
+                    postsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">لا توجد منشورات حالياً</div>';
+                }
             } catch (error) {
                 console.error("خطأ في تحميل المنشورات:", error);
+                postsDiv.innerHTML = '<div style="text-align: center; color: red; padding: 20px;">حدث خطأ أثناء تحميل المنشورات</div>';
             }
         }
 
-        // وظائف الشريط العلوي
         function goToHome() {
-            window.location.href = "/"; // قم بتغيير الرابط حسب الصفحة الرئيسية الخاصة بك
+            window.location.href = "/";
         }
 
         function goToActiveUsers() {
-            window.location.href = "/active-users"; // قم بتغيير الرابط حسب صفحة المستخدمين النشطين الخاصة بك
+            window.location.href = "/active-users";
         }
+
+        // إضافة مستمع لمفتاح Enter في حقل المنشور
+        document.getElementById('postContent').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                createPost();
+            }
+        });
     </script>
 </body>
 </html>
