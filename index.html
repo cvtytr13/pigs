@@ -139,11 +139,32 @@
             <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
         </div>
     </div>
-
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged, 
+            updateProfile 
+        } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            query, 
+            orderBy, 
+            limit, 
+            getDocs, 
+            serverTimestamp, 
+            doc, 
+            updateDoc, 
+            arrayUnion, 
+            arrayRemove,
+            getDoc,
+            where 
+        } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
@@ -158,192 +179,137 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // تعريف الدوال كمتغيرات전역 لإتاحتها للـ window
         window.register = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
+                document.getElementById('authError').style.display = 'none';
             } catch (error) {
+                document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
-            }
-        };
-
-        window.login = async function() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
-            }
-        };
-
-        window.logout = async function() {
-            await signOut(auth);
-        };
-
-        window.createPost = async function() {
-            const content = document.getElementById('postContent').value.trim();
-            if (!content) {
-                document.getElementById('postError').textContent = "لا يمكن نشر منشور فارغ";
-                return;
-            }
-            
-            const user = auth.currentUser;
-            if (!user) {
-                document.getElementById('postError').textContent = "يجب تسجيل الدخول أولاً";
-                return;
-            }
-
-            try {
-                await addDoc(collection(db, 'posts'), {
-                    content: content,
-                    userId: user.uid,
-                    userEmail: user.email,
-                    timestamp: serverTimestamp(),
-                    likes: []
-                });
-                document.getElementById('postContent').value = '';
-                loadPosts();
-            } catch (error) {
-                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
             }
         };
 
         window.likePost = async function(postId) {
             const user = auth.currentUser;
-            if (!user) return;
-
-            const postRef = doc(db, 'posts', postId);
-            const post = await getDoc(postRef);
-            const likes = post.data().likes || [];
-
-            if (likes.includes(user.uid)) {
-                await updateDoc(postRef, {
-                    likes: arrayRemove(user.uid)
-                });
-            } else {
-                await updateDoc(postRef, {
-                    likes: arrayUnion(user.uid)
-                });
+            if (!user) {
+                alert("يجب تسجيل الدخول أولاً");
+                return;
             }
-            loadPosts();
+
+            try {
+                const postRef = doc(db, 'posts', postId);
+                const postSnap = await getDoc(postRef);
+                
+                if (postSnap.exists()) {
+                    const post = postSnap.data();
+                    const likes = post.likes || [];
+                    
+                    if (likes.includes(user.uid)) {
+                        await updateDoc(postRef, {
+                            likes: arrayRemove(user.uid)
+                        });
+                    } else {
+                        await updateDoc(postRef, {
+                            likes: arrayUnion(user.uid)
+                        });
+                    }
+                    await loadPosts(); // إعادة تحميل المنشورات لتحديث عدد الإعجابات
+                }
+            } catch (error) {
+                console.error("Error updating like:", error);
+                alert("حدث خطأ أثناء تحديث الإعجاب");
+            }
         };
 
         window.commentOnPost = async function(postId) {
-            const comment = prompt("أدخل تعليقك:");
-            if (!comment) return;
-
             const user = auth.currentUser;
-            if (!user) return;
+            if (!user) {
+                alert("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            const comment = prompt("أدخل تعليقك:");
+            if (!comment || comment.trim() === "") return;
 
             try {
                 await addDoc(collection(db, 'comments'), {
                     postId: postId,
                     userId: user.uid,
                     userEmail: user.email,
-                    comment: comment,
+                    comment: comment.trim(),
                     timestamp: serverTimestamp()
                 });
-                loadPosts();
+                await loadPosts(); // إعادة تحميل المنشورات لتحديث التعليقات
             } catch (error) {
                 console.error("Error adding comment:", error);
-            }
-        };
-
-        window.showHome = function() {
-            document.getElementById('contentSection').style.display = 'block';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-            loadPosts();
-        };
-
-        window.showProfile = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'block';
-            document.getElementById('settingsSection').style.display = 'none';
-            const user = auth.currentUser;
-            if (user) {
-                loadProfilePosts(user.uid);
-            }
-        };
-
-        window.showSettings = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'block';
-        };
-
-        window.updateProfile = async function() {
-            const displayName = document.getElementById('displayName').value;
-            const user = auth.currentUser;
-            if (user) {
-                try {
-                    await updateProfile(user, { displayName });
-                    alert("تم تحديث البروفايل بنجاح");
-                } catch (error) {
-                    console.error("Error updating profile:", error);
-                }
+                alert("حدث خطأ أثناء إضافة التعليق");
             }
         };
 
         async function loadPosts() {
             const postsDiv = document.getElementById('posts');
             postsDiv.innerHTML = "جاري التحميل...";
+            
             try {
                 const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
                 const snapshot = await getDocs(q);
-                postsDiv.innerHTML = '';
-
-                snapshot.forEach(async (doc) => {
+                
+                let postsHTML = '';
+                
+                for (const doc of snapshot.docs) {
                     const post = doc.data();
-                    const commentsSnapshot = await getDocs(query(collection(db, 'comments'), where('postId', '==', doc.id)));
+                    
+                    // جلب التعليقات لهذا المنشور
+                    const commentsQuery = query(
+                        collection(db, 'comments'),
+                        where('postId', '==', doc.id),
+                        orderBy('timestamp', 'desc')
+                    );
+                    const commentsSnapshot = await getDocs(commentsQuery);
                     const comments = commentsSnapshot.docs.map(commentDoc => commentDoc.data());
 
-                    postsDiv.innerHTML += `
+                    postsHTML += `
                         <div class="post">
                             <strong>${post.userEmail}</strong>
                             <p>${post.content}</p>
                             <div class="post-actions">
-                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${post.likes?.length || 0}
-                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i> ${comments.length}
+                                <i class="fas fa-heart ${post.likes?.includes(auth.currentUser?.uid) ? 'text-red-500' : ''}" 
+                                   onclick="likePost('${doc.id}')"></i> 
+                                <span>${post.likes?.length || 0}</span>
+                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
+                                <span>${comments.length}</span>
                             </div>
                             <div class="comment-section">
-                                ${comments.map(comment => `<p><strong>${comment.userEmail}:</strong> ${comment.comment}</p>`).join('')}
+                                ${comments.map(comment => `
+                                    <p><strong>${comment.userEmail}:</strong> ${comment.comment}</p>
+                                `).join('')}
                             </div>
                         </div>`;
-                });
+                }
+                
+                postsDiv.innerHTML = postsHTML;
             } catch (error) {
+                console.error("Error loading posts:", error);
                 postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
-        }
+   }
 
-        async function loadProfilePosts(userId) {
-            const profilePostsDiv = document.getElementById('profilePosts');
-            profilePostsDiv.innerHTML = "جاري التحميل...";
-            try {
-                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
-                const snapshot = await getDocs(q);
-                profilePostsDiv.innerHTML = '';
-
-                snapshot.forEach((doc) => {
-                    const post = doc.data();
-                    if (post.userId === userId) {
-                        profilePostsDiv.innerHTML += `
-                            <div class="post">
-                                <strong>${post.userEmail}</strong>
-                                <p>${post.content}</p>
-                                <div class="post-actions">
-                                    <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${post.likes?.length || 0}
-                                    <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
-                                </div>
-                            </div>`;
-                    }
-                });
-            } catch (error) {
-                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('contentSection').style.display = 'block';
+                document.getElementById('logoutButton').style.display = 'block';
+                loadPosts();
+            } else {
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('contentSection').style.display = 'none';
+                document.getElementById('profileSection').style.display = 'none';
+                document.getElementById('settingsSection').style.display = 'none';
+                document.getElementById('logoutButton').style.display = 'none';
             }
-        }
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
