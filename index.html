@@ -60,6 +60,7 @@
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
+            margin: 5px;
         }
         .post {
             background: white;
@@ -70,19 +71,29 @@
         }
         .post-actions {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             margin-top: 10px;
+            align-items: center;
         }
         .post-actions i {
             cursor: pointer;
             color: #1877f2;
+            font-size: 18px;
+        }
+        .post-actions i.liked {
+            color: #e41e3f;
         }
         .error-message {
             color: red;
+            margin: 10px 0;
             display: none;
         }
         .profile-section, .settings-section {
             display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
         }
         .comment-section {
             margin-top: 10px;
@@ -97,6 +108,31 @@
             border-radius: 4px;
             margin-top: 10px;
         }
+        .auth-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .auth-inputs input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .comment {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 8px;
+        }
+        .comment:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -106,14 +142,16 @@
             <i class="fas fa-user" onclick="showProfile()"></i>
             <i class="fas fa-cog" onclick="showSettings()"></i>
         </div>
-        <button onclick="logout()" id="logoutButton" style="display: none;">تسجيل الخروج</button>
+        <button onclick="logout()" id="logoutButton" class="button" style="display: none;">تسجيل الخروج</button>
     </div>
 
     <div class="container">
         <div id="authSection">
             <h2>تسجيل الدخول</h2>
-            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
-            <input type="password" id="passwordInput" placeholder="كلمة المرور">
+            <div class="auth-inputs">
+                <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
+                <input type="password" id="passwordInput" placeholder="كلمة المرور">
+            </div>
             <button onclick="login()" class="button">تسجيل الدخول</button>
             <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب</button>
             <div id="authError" class="error-message"></div>
@@ -130,15 +168,19 @@
 
         <div id="profileSection" class="profile-section">
             <h2>البروفايل</h2>
+            <div id="profileInfo"></div>
             <div id="profilePosts"></div>
         </div>
 
         <div id="settingsSection" class="settings-section">
             <h2>الإعدادات</h2>
-            <input type="text" id="displayName" placeholder="اسم العرض">
-            <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
+            <div class="auth-inputs">
+                <input type="text" id="displayName" placeholder="اسم العرض">
+                <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
+            </div>
         </div>
     </div>
+
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
         import { 
@@ -179,16 +221,75 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // تعريف الدوال كمتغيرات전역 لإتاحتها للـ window
         window.register = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('authError');
+            
             try {
+                errorDiv.style.display = 'none';
                 await createUserWithEmailAndPassword(auth, email, password);
-                document.getElementById('authError').style.display = 'none';
             } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = getAuthErrorMessage(error.code);
+            }
+        };
+
+        window.login = async function() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('authError');
+            
+            try {
+                errorDiv.style.display = 'none';
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = getAuthErrorMessage(error.code);
+            }
+        };
+
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Error signing out:", error);
+                alert("حدث خطأ أثناء تسجيل الخروج");
+            }
+        };
+
+        window.createPost = async function() {
+            const content = document.getElementById('postContent').value.trim();
+            const errorDiv = document.getElementById('postError');
+            
+            if (!content) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = "لا يمكن نشر منشور فارغ";
+                return;
+            }
+            
+            const user = auth.currentUser;
+            if (!user) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = "يجب تسجيل الدخول أولاً";
+                return;
+            }
+
+            try {
+                errorDiv.style.display = 'none';
+                await addDoc(collection(db, 'posts'), {
+                    content: content,
+                    userId: user.uid,
+                    userEmail: user.email,
+                    userName: user.displayName || user.email,
+                    timestamp: serverTimestamp(),
+                    likes: []
+                });
+                document.getElementById('postContent').value = '';
+                await loadPosts();
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = "حدث خطأ أثناء النشر";
             }
         };
 
@@ -216,7 +317,7 @@
                             likes: arrayUnion(user.uid)
                         });
                     }
-                    await loadPosts(); // إعادة تحميل المنشورات لتحديث عدد الإعجابات
+                    await loadPosts();
                 }
             } catch (error) {
                 console.error("Error updating like:", error);
@@ -239,19 +340,66 @@
                     postId: postId,
                     userId: user.uid,
                     userEmail: user.email,
+                    userName: user.displayName || user.email,
                     comment: comment.trim(),
                     timestamp: serverTimestamp()
                 });
-                await loadPosts(); // إعادة تحميل المنشورات لتحديث التعليقات
+                await loadPosts();
             } catch (error) {
                 console.error("Error adding comment:", error);
                 alert("حدث خطأ أثناء إضافة التعليق");
             }
         };
 
+        window.showHome = function() {
+            document.getElementById('contentSection').style.display = 'block';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            loadPosts();
+        };
+
+        window.showProfile = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            document.getElementById('settingsSection').style.display = 'none';
+            const user = auth.currentUser;
+            if (user) {
+                loadProfilePosts(user.uid);
+                document.getElementById('profileInfo').innerHTML = `
+                    <h3>${user.displayName || user.email}</h3>
+                    <p>${user.email}</p>
+                `;
+            }
+        };
+
+        window.showSettings = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'block';
+            const user = auth.currentUser;
+            if (user) {
+                document.getElementById('displayName').value = user.displayName || '';
+            }
+        };
+
+        window.updateProfile = async function() {
+            const displayName = document.getElementById('displayName').value.trim();
+            const user = auth.currentUser;
+            if (user && displayName) {
+                try {
+                    await updateProfile(user, { displayName });
+                    alert("تم تحديث البروفايل بنجاح");
+                    showProfile();
+                } catch (error) {
+                    console.error("Error updating profile:", error);
+                    alert("حدث خطأ أثناء تحديث البروفايل");
+                }
+            }
+        };
+
         async function loadPosts() {
             const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = "جاري التحميل...";
+            postsDiv.innerHTML = '<div class="loading">جاري التحميل...</div>';
             
             try {
                 const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
@@ -262,7 +410,6 @@
                 for (const doc of snapshot.docs) {
                     const post = doc.data();
                     
-                    // جلب التعليقات لهذا المنشور
                     const commentsQuery = query(
                         collection(db, 'comments'),
                         where('postId', '==', doc.id),
@@ -271,58 +418,131 @@
                     const commentsSnapshot = await getDocs(commentsQuery);
                     const comments = commentsSnapshot.docs.map(commentDoc => commentDoc.data());
 
+                    const isLiked = post.likes?.includes(auth.currentUser?.uid);
+                    const likeCount = post.likes?.length || 0;
+
                     postsHTML += `
                         <div class="post">
-                            <strong>${post.userEmail}</strong>
+                            <strong>${post.userName || post.userEmail}</strong>
                             <p>${post.content}</p>
                             <div class="post-actions">
-                                <i class="fas fa-heart ${post.likes?.includes(auth.currentUser?.uid) ? 'text-red-500' : ''}" 
+                                <i class="fas fa-heart ${isLiked ? 'liked' : ''}" 
                                    onclick="likePost('${doc.id}')"></i> 
-                                <span>${post.likes?.length || 0}</span>
+                                <span>${likeCount}</span>
                                 <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
                                 <span>${comments.length}</span>
                             </div>
                             <div class="comment-section">
                                 ${comments.map(comment => `
-                                    <p><strong>${comment.userEmail}:</strong> ${comment.comment}</p>
+                                    <div class="comment">
+                                        <strong>${comment.userName || comment.userEmail}:</strong> 
+                                        <span>${comment.comment}</span>
+                                    </div>
                                 `).join('')}
                             </div>
                         </div>`;
                 }
                 
-                postsDiv.innerHTML = postsHTML;
+                postsDiv.innerHTML = postsHTML || '<p>لا توجد منشورات حالياً</p>';
             } catch (error) {
                 console.error("Error loading posts:", error);
                 postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
-   }
+        }
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
-                document.getElementById('logoutButton').style.display = 'block';
-                loadPosts();
-            } else {
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('contentSection').style.display = 'none';
-                document.getElementById('profileSection').style.display = 'none';
-                document.getElementById('settingsSection').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
+        async function loadProfilePosts(userId) {
+            const profilePostsDiv = document.getElementById('profilePosts');
+            profilePostsDiv.innerHTML = '<div class="loading">جاري التحميل...</div>';
+            
+            try {
+                const q = query(
+                    collection(db, 'posts'),
+                    where('userId', '==', userId),
+                    orderBy('timestamp', 'desc'),
+                    limit(20)
+                );
+                const snapshot = await getDocs(q);
+                
+                let postsHTML = '';
+                
+                for (const doc of snapshot.docs) {
+                    const post = doc.data();
+                    
+                    const commentsQuery = query(
+                        collection(db, 'comments'),
+                        where('postId', '==', doc.id),
+                        orderBy('timestamp', 'desc')
+                    );
+                    const commentsSnapshot = await getDocs(commentsQuery);
+                    const comments = commentsSnapshot.docs.map(commentDoc => commentDoc.data());
+
+                    const isLiked = post.likes?.includes(auth.currentUser?.uid);
+                    const likeCount = post.likes?.length || 0;
+
+                    postsHTML += `
+                        <div class="post">
+                            <strong>${post.userName || post.userEmail}</strong>
+                            <p>${post.content}</p>
+                            <div class="post-actions">
+                                <i class="fas fa-heart ${isLiked ? 'liked' : ''}" 
+                                   onclick="likePost('${doc.id}')"></i> 
+                                <span>${likeCount}</span>
+                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
+                                <span>${comments.length}</span>
+                            </div>
+                            <div class="comment-section">
+                                ${comments.map(comment => `
+                                    <div class="comment">
+                                        <strong>${comment.userName || comment.userEmail}:</strong> 
+                                        <span>${comment.comment}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                }
+                
+                profilePostsDiv.innerHTML = postsHTML || '<p>لا توجد منشورات حالياً</p>';
+            } catch (error) {
+                console.error("Error loading profile posts:", error);
+                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
+        }
 
+        function getAuthErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/email-already-in-use':
+                    return 'البريد الإلكتروني مستخدم بالفعل';
+                case 'auth/invalid-email':
+                    return 'البريد الإلكتروني غير صالح';
+                case 'auth/weak-password':
+                    return 'كلمة المرور ضعيفة جداً';
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+                default:
+                    return 'حدث خطأ أثناء تسجيل الدخول';
+            }
+        }
+
+        // مراقبة حالة تسجيل الدخول
         onAuthStateChanged(auth, (user) => {
+            const authSection = document.getElementById('authSection');
+            const contentSection = document.getElementById('contentSection');
+            const logoutButton = document.getElementById('logoutButton');
+            const profileSection = document.getElementById('profileSection');
+            const settingsSection = document.getElementById('settingsSection');
+
             if (user) {
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
-                document.getElementById('logoutButton').style.display = 'block';
+                authSection.style.display = 'none';
+                contentSection.style.display = 'block';
+                logoutButton.style.display = 'block';
                 loadPosts();
             } else {
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('contentSection').style.display = 'none';
-                document.getElementById('profileSection').style.display = 'none';
-                document.getElementById('settingsSection').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
+                authSection.style.display = 'block';
+                contentSection.style.display = 'none';
+                profileSection.style.display = 'none';
+                settingsSection.style.display = 'none';
+                logoutButton.style.display = 'none';
             }
         });
     </script>
