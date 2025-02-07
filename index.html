@@ -145,7 +145,7 @@
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
+                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل: " + error.message;
             }
         };
 
@@ -155,7 +155,7 @@
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
+                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة: " + error.message;
             }
         };
 
@@ -186,7 +186,7 @@
                 document.getElementById('postContent').value = '';
                 loadPosts();
             } catch (error) {
-                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
+                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر: " + error.message;
             }
         };
 
@@ -197,6 +197,11 @@
                 const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
                 const snapshot = await getDocs(q);
                 postsDiv.innerHTML = '';
+
+                if (snapshot.empty) {
+                    postsDiv.innerHTML = "لا توجد منشورات لعرضها.";
+                    return;
+                }
 
                 for (const doc of snapshot.docs) {
                     const post = doc.data();
@@ -214,6 +219,7 @@
                         </div>`;
                 }
             } catch (error) {
+                console.error("حدث خطأ أثناء تحميل المنشورات:", error);
                 postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
         }
@@ -225,6 +231,11 @@
                 const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
                 const snapshot = await getDocs(q);
                 profilePostsDiv.innerHTML = '';
+
+                if (snapshot.empty) {
+                    profilePostsDiv.innerHTML = "لا توجد منشورات لعرضها.";
+                    return;
+                }
 
                 snapshot.forEach((doc) => {
                     const post = doc.data();
@@ -241,6 +252,7 @@
                     }
                 });
             } catch (error) {
+                console.error("حدث خطأ أثناء تحميل المنشورات:", error);
                 profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
         }
