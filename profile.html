@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الملف الشخصي</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>الملف الشخصي</h1>
+        <div id="profile-info">
+            <!-- سيتم عرض معلومات المستخدم هنا -->
+        </div>
+        <form id="profile-form">
+            <input type="text" id="display-name" placeholder="اسم العرض" required>
+            <input type="text" id="bio" placeholder="نبذة عنك" required>
+            <button type="submit">حفظ التغييرات</button>
+        </form>
+    </div>
+    <script src="js/firebase.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
