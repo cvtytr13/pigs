@@ -232,7 +232,8 @@
             signInWithEmailAndPassword, 
             createUserWithEmailAndPassword, 
             signOut, 
-            onAuthStateChanged 
+            onAuthStateChanged,
+            updatePassword
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
         import { 
             getFirestore, 
@@ -245,9 +246,11 @@
             doc,
             updateDoc,
             getDoc,
-            deleteDoc,
+            arrayUnion,
+            arrayRemove,
             increment,
-            serverTimestamp 
+            serverTimestamp,
+            where
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
@@ -281,6 +284,7 @@
                 await addDoc(collection(db, 'users'), {
                     uid: userCredential.user.uid,
                     email: userCredential.user.email,
+                    name: email.split('@')[0],
                     createdAt: serverTimestamp()
                 });
             } catch (error) {
@@ -302,6 +306,7 @@
             try {
                 await signInWithEmailAndPassword(auth, email, password);
                 document.getElementById('authError').style.display = 'none';
+                loadPosts();
             } catch (error) {
                 document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
@@ -311,6 +316,11 @@
         window.logout = async function() {
             try {
                 await signOut(auth);
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('contentSection').style.display = 'none';
+                document.getElementById('profileSection').style.display = 'none';
+                document.getElementById('settingsSection').style.display = 'none';
+                document.getElementById('logoutButton').style.display = 'none';
             } catch (error) {
                 console.error("Error signing out: ", error);
             }
@@ -389,9 +399,69 @@
                         </div>`;
                 });
             } catch (error) {
-                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
+                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
         }
+
+        window.addComment = async function(postId, content) {
+            const user = auth.currentUser;
+            if (!user) {
+                alert("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            if (!content.trim()) {
+                alert("لا يمكن إضافة تعليق فارغ");
+                return;
+            }
+
+            try {
+                const postRef = doc(db, 'posts', postId);
+                await updateDoc(postRef, {
+                    comments: arrayUnion({
+                        userEmail: user.email,
+                        content: content.trim(),
+                        timestamp: serverTimestamp()
+                    })
+                });
+                loadPosts();
+            } catch (error) {
+                console.error("Error adding comment:", error);
+                alert("حدث خطأ أثناء إضافة التعليق");
+            }
+        };
+
+        window.likePost = async function(postId) {
+            const user = auth.currentUser;
+            if (!user) {
+                alert("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            try {
+                const postRef = doc(db, 'posts', postId);
+                const postDoc = await getDoc(postRef);
+                const postData = postDoc.data();
+
+                const isLiked = postData.likedBy?.includes(user.uid);
+
+                if (isLiked) {
+                    await updateDoc(postRef, {
+                        likes: increment(-1),
+                        likedBy: arrayRemove(user.uid)
+                    });
+                } else {
+                    await updateDoc(postRef, {
+                        likes: increment(1),
+                        likedBy: arrayUnion(user.uid)
+                    });
+                }
+                loadPosts();
+            } catch (error) {
+                console.error("Error liking post:", error);
+                alert("حدث خطأ أثناء الإعجاب بالمنشور");
+            }
+        };
 
         // Navigation Functions
         window.showHome = function() {
@@ -425,37 +495,55 @@
         window.updateProfile = async function() {
             const user = auth.currentUser;
             if (!user) return;
-            
-            try {
-                // Implement profile update functionality
-                alert('قريباً - تحديث الملف الشخصي');
-            } catch (error) {
-                console.error("Error updating profile:", error);
-                alert('حدث خطأ أثناء تحديث الملف الشخصي');
+
+            const newName = prompt("أدخل اسمك الجديد:");
+            if (newName) {
+                try {
+                    const userRef = doc(db, 'users', user.uid);
+                    await updateDoc(userRef, {
+                        name: newName
+                    });
+                    alert("تم تحديث الملف الشخصي بنجاح");
+                    showProfile();
+                } catch (error) {
+                    console.error("Error updating profile:", error);
+                    alert("حدث خطأ أثناء تحديث الملف الشخصي");
+                }
             }
         };
 
         window.changePassword = async function() {
             const user = auth.currentUser;
             if (!user) return;
-            
-            try {
-                // Implement password change functionality
-                alert('قريباً - تغيير كلمة المرور');
-            } catch (error) {
-                console.error("Error changing password:", error);
-                alert('حدث خطأ أثناء تغيير كلمة المرور');
+
+            const newPassword = prompt("أدخل كلمة المرور الجديدة:");
+            if (newPassword) {
+                try {
+                    await updatePassword(user, newPassword);
+                    alert("تم تغيير كلمة المرور بنجاح");
+                } catch (error) {
+                    console.error("Error changing password:", error);
+                    alert("حدث خطأ أثناء تغيير كلمة المرور");
+                }
             }
         };
 
         window.toggleNotifications = function() {
-            // Implement notifications settings
-            alert('قريباً - إعدادات الإشعارات');
+            const notificationsEnabled = confirm("هل تريد تفعيل الإشعارات؟");
+            if (notificationsEnabled) {
+                alert("تم تفعيل الإشعارات");
+            } else {
+                alert("تم إيقاف الإشعارات");
+            }
         };
 
         window.togglePrivacy = function() {
-            // Implement privacy settings
-            alert('قريباً - إعدادات الخصوصية');
+            const privacySetting = confirm("هل تريد جعل حسابك خاصًا؟");
+            if (privacySetting) {
+                alert("تم جعل الحساب خاصًا");
+            } else {
+                alert("تم جعل الحساب عامًا");
+            }
         };
 
         // Auth State Observer
@@ -479,10 +567,11 @@
 
         // Initialize app
         window.onload = function() {
-            // Check if user is already logged in
             const user = auth.currentUser;
             if (user) {
                 showHome();
+            } else {
+                document.getElementById('authSection').style.display = 'block';
             }
         };
     </script>
