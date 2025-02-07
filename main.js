@@ -73,3 +73,43 @@ firebase.auth().onAuthStateChanged((user) => {
         window.location.href = 'login.html';
     }
 });
+// إنشاء حساب
+document.getElementById('signup-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            // تم إنشاء الحساب بنجاح
+            alert('تم إنشاء الحساب بنجاح!');
+            window.location.href = 'index.html'; // تحويل المستخدم إلى الصفحة الرئيسية
+        })
+        .catch((error) => {
+            // حدث خطأ أثناء إنشاء الحساب
+            alert(`خطأ: ${error.message}`);
+        });
+});
+
+// تسجيل الدخول
+document.getElementById('login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            // تم تسجيل الدخول بنجاح
+            alert('تم تسجيل الدخول بنجاح!');
+            window.location.href = 'index.html'; // تحويل المستخدم إلى الصفحة الرئيسية
+        })
+        .catch((error) => {
+            // حدث خطأ أثناء تسجيل الدخول
+            alert(`خطأ: ${error.message}`);
+        });
+});
+// التحقق من أول زيارة
+if (!localStorage.getItem('visited')) {
+    localStorage.setItem('visited', 'true');
+    window.location.href = 'signup.html'; // تحويل المستخدم إلى صفحة إنشاء حساب
+}
