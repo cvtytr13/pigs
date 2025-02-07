@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>منصة التواصل الاجتماعي</title>
     <style>
         body {
@@ -18,13 +19,9 @@
             justify-content: space-between;
             align-items: center;
             color: white;
-        }
-        .navbar button {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
         .container {
             max-width: 800px;
@@ -40,11 +37,12 @@
         }
         .post-input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-bottom: 10px;
             resize: none;
+            font-size: 16px;
         }
         .button {
             background-color: #1877f2;
@@ -54,10 +52,6 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        .button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
         .post {
             background: white;
             padding: 15px;
@@ -65,83 +59,42 @@
             margin-bottom: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .post-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .post-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-left: 10px;
-        }
-        .post-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-        }
-        .action-button {
-            background: none;
-            border: none;
-            color: #65676b;
-            cursor: pointer;
-            padding: 5px 10px;
-        }
-        .auth-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .auth-input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .loading {
+        .error-message {
+            color: red;
             display: none;
-            text-align: center;
-            padding: 10px;
         }
     </style>
 </head>
 <body>
     <div class="navbar">
-        <button onclick="goToHome()">الصفحة الرئيسية</button>
-        <button onclick="goToActiveUsers()">المستخدمين النشطين</button>
         <button onclick="logout()" id="logoutButton" style="display: none;">تسجيل الخروج</button>
     </div>
 
     <div class="container">
-        <div id="authSection" class="auth-container">
+        <div id="authSection">
             <h2>تسجيل الدخول</h2>
-            <input type="email" id="emailInput" class="auth-input" placeholder="البريد الإلكتروني">
-            <input type="password" id="passwordInput" class="auth-input" placeholder="كلمة المرور">
+            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
+            <input type="password" id="passwordInput" placeholder="كلمة المرور">
             <button onclick="login()" class="button">تسجيل الدخول</button>
-            <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب جديد</button>
+            <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب</button>
+            <div id="authError" class="error-message"></div>
         </div>
 
         <div id="contentSection" style="display: none;">
             <div class="post-form">
                 <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
-                <div class="loading" id="postLoading">جاري النشر...</div>
-                <button onclick="createPost()" class="button" id="postButton">نشر</button>
+                <button onclick="createPost()" class="button">نشر</button>
+                <div id="postError" class="error-message"></div>
             </div>
             <div id="posts"></div>
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
-    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
             authDomain: "messge102.firebaseapp.com",
@@ -151,166 +104,88 @@
             appId: "1:353675326399:web:1836fcb73faf9d0f39670a"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        function register() {
+        window.register = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
+            }
+        };
+
+        window.login = async function() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
+            }
+        };
+
+        window.logout = async function() {
+            await signOut(auth);
+        };
+
+        window.createPost = async function() {
+            const content = document.getElementById('postContent').value.trim();
+            if (!content) {
+                document.getElementById('postError').textContent = "لا يمكن نشر منشور فارغ";
+                return;
+            }
             
-            if (!email || !password) {
-                alert("الرجاء إدخال البريد الإلكتروني وكلمة المرور");
+            const user = auth.currentUser;
+            if (!user) {
+                document.getElementById('postError').textContent = "يجب تسجيل الدخول أولاً";
                 return;
             }
 
-            auth.createUserWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    console.log("تم إنشاء الحساب بنجاح");
-                })
-                .catch((error) => {
-                    alert("خطأ في التسجيل: " + error.message);
+            try {
+                await addDoc(collection(db, 'posts'), {
+                    content: content,
+                    userId: user.uid,
+                    userEmail: user.email,
+                    timestamp: serverTimestamp()
                 });
-        }
-
-        function login() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            
-            if (!email || !password) {
-                alert("الرجاء إدخال البريد الإلكتروني وكلمة المرور");
-                return;
+                document.getElementById('postContent').value = '';
+                loadPosts();
+            } catch (error) {
+                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
             }
+        };
 
-            auth.signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    console.log("تم تسجيل الدخول بنجاح");
-                })
-                .catch((error) => {
-                    alert("خطأ في تسجيل الدخول: " + error.message);
+        async function loadPosts() {
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = "جاري التحميل...";
+            try {
+                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
+                const snapshot = await getDocs(q);
+                postsDiv.innerHTML = '';
+
+                snapshot.forEach((doc) => {
+                    const post = doc.data();
+                    postsDiv.innerHTML += `<div class="post"><strong>${post.userEmail}</strong><p>${post.content}</p></div>`;
                 });
+            } catch (error) {
+                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
+            }
         }
 
-        function logout() {
-            auth.signOut().then(() => {
-                console.log("تم تسجيل الخروج بنجاح");
-            }).catch((error) => {
-                console.error("خطأ في تسجيل الخروج:", error);
-            });
-        }
-
-        auth.onAuthStateChanged((user) => {
-            const logoutButton = document.getElementById('logoutButton');
+        onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
-                logoutButton.style.display = 'block';
+                document.getElementById('logoutButton').style.display = 'block';
                 loadPosts();
             } else {
                 document.getElementById('authSection').style.display = 'block';
                 document.getElementById('contentSection').style.display = 'none';
-                logoutButton.style.display = 'none';
-            }
-        });
-
-        async function createPost() {
-            const postButton = document.getElementById('postButton');
-            const postLoading = document.getElementById('postLoading');
-            const content = document.getElementById('postContent').value.trim();
-            const user = auth.currentUser;
-            
-            if (!content) {
-                alert("الرجاء كتابة محتوى المنشور");
-                return;
-            }
-
-            if (!user) {
-                alert("الرجاء تسجيل الدخول أولاً");
-                return;
-            }
-
-            try {
-                postButton.disabled = true;
-                postLoading.style.display = 'block';
-
-                await db.collection('posts').add({
-                    content: content,
-                    userId: user.uid,
-                    userEmail: user.email,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-
-                document.getElementById('postContent').value = '';
-                await loadPosts();
-            } catch (error) {
-                console.error("خطأ في إنشاء المنشور:", error);
-                alert("حدث خطأ أثناء النشر. الرجاء المحاولة مرة أخرى.");
-            } finally {
-                postButton.disabled = false;
-                postLoading.style.display = 'none';
-            }
-        }
-
-        async function loadPosts() {
-            const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = '<div class="loading">جاري تحميل المنشورات...</div>';
-            
-            try {
-                const snapshot = await db.collection('posts')
-                    .orderBy('timestamp', 'desc')
-                    .limit(20)
-                    .get();
-                
-                postsDiv.innerHTML = '';
-                
-                snapshot.forEach((doc) => {
-                    const post = doc.data();
-                    const postDate = post.timestamp ? new Date(post.timestamp.toDate()).toLocaleString('ar-SA') : 'الآن';
-                    
-                    const postElement = `
-                        <div class="post">
-                            <div class="post-header">
-                                <img src="/api/placeholder/40/40" alt="صورة المستخدم" class="post-avatar">
-                                <div>
-                                    <strong>${post.userEmail}</strong>
-                                    <div style="font-size: 0.8em; color: #65676b;">${postDate}</div>
-                                </div>
-                            </div>
-                            <div class="post-content">
-                                ${post.content}
-                            </div>
-                            <div class="post-actions">
-                                <button class="action-button">إعجاب</button>
-                                <button class="action-button">تعليق</button>
-                                <button class="action-button">مشاركة</button>
-                            </div>
-                        </div>
-                    `;
-                    postsDiv.innerHTML += postElement;
-                });
-
-                if (snapshot.empty) {
-                    postsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">لا توجد منشورات حالياً</div>';
-                }
-            } catch (error) {
-                console.error("خطأ في تحميل المنشورات:", error);
-                postsDiv.innerHTML = '<div style="text-align: center; color: red; padding: 20px;">حدث خطأ أثناء تحميل المنشورات</div>';
-            }
-        }
-
-        function goToHome() {
-            window.location.href = "/";
-        }
-
-        function goToActiveUsers() {
-            window.location.href = "/active-users";
-        }
-
-        // إضافة مستمع لمفتاح Enter في حقل المنشور
-        document.getElementById('postContent').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                createPost();
+                document.getElementById('logoutButton').style.display = 'none';
             }
         });
     </script>
