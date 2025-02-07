@@ -163,9 +163,8 @@
             const password = document.getElementById('passwordInput').value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                document.getElementById('authError').textContent = "";
             } catch (error) {
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل: " + error.message;
+                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
             }
         };
 
@@ -174,18 +173,13 @@
             const password = document.getElementById('passwordInput').value;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                document.getElementById('authError').textContent = "";
             } catch (error) {
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة: " + error.message;
+                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
             }
         };
 
         window.logout = async function() {
-            try {
-                await signOut(auth);
-            } catch (error) {
-                console.error("Error logging out:", error);
-            }
+            await signOut(auth);
         };
 
         window.createPost = async function() {
@@ -210,23 +204,19 @@
                     likes: []
                 });
                 document.getElementById('postContent').value = '';
-                document.getElementById('postError').textContent = "";
                 loadPosts();
             } catch (error) {
-                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر: " + error.message;
+                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
             }
         };
 
         window.likePost = async function(postId) {
             const user = auth.currentUser;
-            if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
-                return;
-            }
+            if (!user) return;
 
             const postRef = doc(db, 'posts', postId);
-            const postDoc = await getDoc(postRef);
-            const likes = postDoc.data().likes || [];
+            const post = await getDoc(postRef);
+            const likes = post.data().likes || [];
 
             if (likes.includes(user.uid)) {
                 await updateDoc(postRef, {
@@ -245,10 +235,7 @@
             if (!comment) return;
 
             const user = auth.currentUser;
-            if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
-                return;
-            }
+            if (!user) return;
 
             try {
                 await addDoc(collection(db, 'comments'), {
@@ -308,7 +295,7 @@
                 const snapshot = await getDocs(q);
                 postsDiv.innerHTML = '';
 
-                for (const doc of snapshot.docs) {
+                snapshot.forEach(async (doc) => {
                     const post = doc.data();
                     const commentsSnapshot = await getDocs(query(collection(db, 'comments'), where('postId', '==', doc.id)));
                     const comments = commentsSnapshot.docs.map(commentDoc => commentDoc.data());
@@ -325,7 +312,7 @@
                                 ${comments.map(comment => `<p><strong>${comment.userEmail}:</strong> ${comment.comment}</p>`).join('')}
                             </div>
                         </div>`;
-                }
+                });
             } catch (error) {
                 postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
@@ -335,21 +322,23 @@
             const profilePostsDiv = document.getElementById('profilePosts');
             profilePostsDiv.innerHTML = "جاري التحميل...";
             try {
-                const q = query(collection(db, 'posts'), where('userId', '==', userId), orderBy('timestamp', 'desc'), limit(20));
+                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'), limit(20));
                 const snapshot = await getDocs(q);
                 profilePostsDiv.innerHTML = '';
 
                 snapshot.forEach((doc) => {
                     const post = doc.data();
-                    profilePostsDiv.innerHTML += `
-                        <div class="post">
-                            <strong>${post.userEmail}</strong>
-                            <p>${post.content}</p>
-                            <div class="post-actions">
-                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${post.likes?.length || 0}
-                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
-                            </div>
-                        </div>`;
+                    if (post.userId === userId) {
+                        profilePostsDiv.innerHTML += `
+                            <div class="post">
+                                <strong>${post.userEmail}</strong>
+                                <p>${post.content}</p>
+                                <div class="post-actions">
+                                    <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${post.likes?.length || 0}
+                                    <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
+                                </div>
+                            </div>`;
+                    }
                 });
             } catch (error) {
                 profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
