@@ -80,15 +80,100 @@
         .error-message {
             color: red;
             display: none;
+            margin-top: 5px;
         }
-        .profile-section, .settings-section {
+        .profile-section {
             display: none;
         }
-        .comment {
+        .comment-section {
             margin-top: 10px;
             padding: 10px;
-            background-color: #f9f9f9;
+            background-color: #f8f9fa;
             border-radius: 4px;
+        }
+        .comment-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .comment {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 8px;
+        }
+        .comment:last-child {
+            border-bottom: none;
+        }
+        .like-count {
+            margin-right: 5px;
+            color: #666;
+        }
+        .liked {
+            color: #e41e3f;
+        }
+        .profile-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            background-color: #1877f2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+            margin: 0 auto;
+        }
+        .settings-menu {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .settings-option {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        .settings-option:hover {
+            background-color: #f8f9fa;
+        }
+        .settings-option:last-child {
+            border-bottom: none;
+        }
+        #authSection {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #authSection input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #logoutButton {
+            background-color: #ffffff;
+            color: #1877f2;
+            border: 1px solid #1877f2;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #logoutButton:hover {
+            background-color: #1877f2;
+            color: #ffffff;
         }
     </style>
 </head>
@@ -103,7 +188,6 @@
     </div>
 
     <div class="container">
-        <!-- قسم تسجيل الدخول -->
         <div id="authSection">
             <h2>تسجيل الدخول</h2>
             <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
@@ -113,7 +197,6 @@
             <div id="authError" class="error-message"></div>
         </div>
 
-        <!-- قسم المحتوى الرئيسي -->
         <div id="contentSection" style="display: none;">
             <div class="post-form">
                 <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
@@ -123,18 +206,22 @@
             <div id="posts"></div>
         </div>
 
-        <!-- قسم البروفايل -->
         <div id="profileSection" class="profile-section">
-            <h2>البروفايل</h2>
+            <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar"></div>
+                <h2 id="profileName">اسم المستخدم</h2>
+                <p id="profileEmail">البريد الإلكتروني</p>
+            </div>
             <div id="profilePosts"></div>
         </div>
 
-        <!-- قسم الإعدادات -->
-        <div id="settingsSection" class="settings-section">
-            <h2>الإعدادات</h2>
-            <input type="text" id="displayName" placeholder="الاسم المعروض">
-            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة">
-            <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
+        <div id="settingsSection" style="display: none;">
+            <div class="settings-menu">
+                <div class="settings-option" onclick="updateProfile()">تعديل الملف الشخصي</div>
+                <div class="settings-option" onclick="changePassword()">تغيير كلمة المرور</div>
+                <div class="settings-option" onclick="toggleNotifications()">إعدادات الإشعارات</div>
+                <div class="settings-option" onclick="togglePrivacy()">إعدادات الخصوصية</div>
+            </div>
         </div>
     </div>
 
@@ -145,9 +232,7 @@
             signInWithEmailAndPassword, 
             createUserWithEmailAndPassword, 
             signOut, 
-            onAuthStateChanged, 
-            updateProfile, 
-            updatePassword 
+            onAuthStateChanged 
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
         import { 
             getFirestore, 
@@ -156,11 +241,12 @@
             query, 
             orderBy, 
             limit, 
-            getDocs, 
-            doc, 
-            updateDoc, 
-            getDoc, 
-            where,
+            getDocs,
+            doc,
+            updateDoc,
+            getDoc,
+            deleteDoc,
+            increment,
             serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
@@ -177,43 +263,71 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // تسجيل مستخدم جديد
+        // Authentication Functions
         window.register = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
+            
+            if (!email || !password) {
+                document.getElementById('authError').style.display = 'block';
+                document.getElementById('authError').textContent = "يرجى ملء جميع الحقول";
+                return;
+            }
+
             try {
-                await createUserWithEmailAndPassword(auth, email, password);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                document.getElementById('authError').style.display = 'none';
+                // Create user profile document
+                await addDoc(collection(db, 'users'), {
+                    uid: userCredential.user.uid,
+                    email: userCredential.user.email,
+                    createdAt: serverTimestamp()
+                });
             } catch (error) {
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
+                document.getElementById('authError').style.display = 'block';
+                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل: " + error.message;
             }
         };
 
-        // تسجيل الدخول
         window.login = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
+            
+            if (!email || !password) {
+                document.getElementById('authError').style.display = 'block';
+                document.getElementById('authError').textContent = "يرجى ملء جميع الحقول";
+                return;
+            }
+
             try {
                 await signInWithEmailAndPassword(auth, email, password);
+                document.getElementById('authError').style.display = 'none';
             } catch (error) {
+                document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
             }
         };
 
-        // تسجيل الخروج
         window.logout = async function() {
-            await signOut(auth);
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Error signing out: ", error);
+            }
         };
 
-        // إنشاء منشور جديد
+        // Post Functions
         window.createPost = async function() {
             const content = document.getElementById('postContent').value.trim();
             if (!content) {
+                document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "لا يمكن نشر منشور فارغ";
                 return;
             }
             
             const user = auth.currentUser;
             if (!user) {
+                document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "يجب تسجيل الدخول أولاً";
                 return;
             }
@@ -223,18 +337,20 @@
                     content: content,
                     userId: user.uid,
                     userEmail: user.email,
-                    displayName: user.displayName || user.email,
-                    likes: [],
-                    timestamp: serverTimestamp()
+                    timestamp: serverTimestamp(),
+                    likes: 0,
+                    likedBy: [],
+                    comments: []
                 });
                 document.getElementById('postContent').value = '';
+                document.getElementById('postError').style.display = 'none';
                 loadPosts();
             } catch (error) {
+                document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
             }
         };
 
-        // تحميل المنشورات
         async function loadPosts() {
             const postsDiv = document.getElementById('posts');
             postsDiv.innerHTML = "جاري التحميل...";
@@ -243,163 +359,32 @@
                 const snapshot = await getDocs(q);
                 postsDiv.innerHTML = '';
 
-                snapshot.forEach(async (doc) => {
-                    const post = doc.data();
-                    const likesCount = post.likes ? post.likes.length : 0;
-                    const postElement = document.createElement('div');
-                    postElement.className = 'post';
-                    postElement.id = `post-${doc.id}`;
-                    postElement.innerHTML = `
-                        <strong>${post.displayName || post.userEmail}</strong>
-                        <p>${post.content}</p>
-                        <div class="post-actions">
-                            <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${likesCount}
-                            <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
-                        </div>`;
-                    postsDiv.appendChild(postElement);
-                    await loadComments(doc.id, postElement);
-                });
-            } catch (error) {
-                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
-            }
-        }
-
-        // تحميل التعليقات
-        async function loadComments(postId, postElement) {
-            const commentsRef = collection(db, 'posts', postId, 'comments');
-            const q = query(commentsRef, orderBy('timestamp', 'asc'));
-            const snapshot = await getDocs(q);
-
-            let commentsHtml = '';
-            snapshot.forEach((doc) => {
-                const comment = doc.data();
-                commentsHtml += `
-                    <div class="comment">
-                        <strong>${comment.displayName || comment.userEmail}</strong>
-                        <p>${comment.content}</p>
-                    </div>`;
-            });
-
-            postElement.innerHTML += `<div class="comments">${commentsHtml}</div>`;
-        }
-
-        // الإعجاب بالمنشور
-        window.likePost = async function(postId) {
-            const user = auth.currentUser;
-            if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
-                return;
-            }
-
-            const postRef = doc(db, 'posts', postId);
-            const postDoc = await getDoc(postRef);
-            const postData = postDoc.data();
-
-            const likes = postData.likes || [];
-            const userIndex = likes.indexOf(user.uid);
-
-            if (userIndex === -1) {
-                likes.push(user.uid); // إضافة المستخدم إلى قائمة الإعجابات
-            } else {
-                likes.splice(userIndex, 1); // إزالة المستخدم من قائمة الإعجابات
-            }
-
-            await updateDoc(postRef, { likes: likes });
-            loadPosts(); // إعادة تحميل المنشورات لتحديث عدد الإعجابات
-        };
-
-        // إضافة تعليق
-        window.commentOnPost = async function(postId) {
-            const user = auth.currentUser;
-            if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
-                return;
-            }
-
-            const comment = prompt("أدخل تعليقك:");
-            if (!comment) return;
-
-            const commentsRef = collection(db, 'posts', postId, 'comments');
-            await addDoc(commentsRef, {
-                content: comment,
-                userId: user.uid,
-                userEmail: user.email,
-                displayName: user.displayName || user.email,
-                timestamp: serverTimestamp()
-            });
-
-            loadPosts(); // إعادة تحميل المنشورات لتحديث التعليقات
-        };
-
-        // عرض الصفحة الرئيسية
-        window.showHome = function() {
-            document.getElementById('contentSection').style.display = 'block';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-            loadPosts();
-        };
-
-        // عرض البروفايل
-        window.showProfile = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'block';
-            document.getElementById('settingsSection').style.display = 'none';
-            const user = auth.currentUser;
-            if (user) {
-                loadProfilePosts(user.uid);
-            }
-        };
-
-        // عرض الإعدادات
-        window.showSettings = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'block';
-        };
-
-        // تحديث البروفايل
-        window.updateProfile = async function() {
-            const user = auth.currentUser;
-            if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
-                return;
-            }
-
-            const displayName = document.getElementById('displayName').value;
-            const newPassword = document.getElementById('newPassword').value;
-
-            try {
-                if (displayName) {
-                    await updateProfile(user, { displayName: displayName });
-                }
-                if (newPassword) {
-                    await updatePassword(user, newPassword);
-                }
-                alert("تم تحديث البروفايل بنجاح");
-            } catch (error) {
-                alert("حدث خطأ أثناء تحديث البروفايل");
-            }
-        };
-
-        // تحميل منشورات البروفايل
-        async function loadProfilePosts(userId) {
-            const profilePostsDiv = document.getElementById('profilePosts');
-            profilePostsDiv.innerHTML = "جاري التحميل...";
-            try {
-                const q = query(collection(db, 'posts'), where('userId', '==', userId), orderBy('timestamp', 'desc'), limit(20));
-                const snapshot = await getDocs(q);
-                profilePostsDiv.innerHTML = '';
-
                 snapshot.forEach((doc) => {
                     const post = doc.data();
-                    const likesCount = post.likes ? post.likes.length : 0;
-                    profilePostsDiv.innerHTML += `
+                    const isLiked = post.likedBy?.includes(auth.currentUser?.uid);
+                    
+                    postsDiv.innerHTML += `
                         <div class="post">
-                            <strong>${post.displayName || post.userEmail}</strong>
+                            <strong>${post.userEmail}</strong>
                             <p>${post.content}</p>
                             <div class="post-actions">
-                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${likesCount}
-                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
+                                <i class="fas fa-heart ${isLiked ? 'liked' : ''}" 
+                                   onclick="likePost('${doc.id}')"></i>
+                                <span class="like-count">${post.likes || 0}</span>
+                                <i class="fas fa-comment" onclick="toggleComments('${doc.id}')"></i>
+                            </div>
+                            <div id="comments-${doc.id}" class="comment-section" style="display: none;">
+                                <div class="comments-list">
+                                    ${(post.comments || []).map(comment => `
+                                        <div class="comment">
+                                            <strong>${comment.userEmail}</strong>
+                                            <p>${comment.content}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <input type="text" class="comment-input" 
+                                       placeholder="اكتب تعليقاً..." 
+                                       onkeypress="if(event.key === 'Enter') addComment('${doc.id}', this.value)">
                             </div>
                         </div>`;
                 });
@@ -408,20 +393,77 @@
             }
         }
 
-        // إظهار/إخفاء التعليقات
-        window.toggleComments = function(postId) {
-            const postElement = document.getElementById(`post-${postId}`);
-            const commentsDiv = postElement.querySelector('.comments');
-            commentsDiv.style.display = commentsDiv.style.display === 'none' ? 'block' : 'none';
+        // Navigation Functions
+        window.showHome = function() {
+            document.getElementById('contentSection').style.display = 'block';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            loadPosts();
         };
 
-        // مراقبة حالة المستخدم
+        window.showProfile = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            document.getElementById('settingsSection').style.display = 'none';
+            
+            const user = auth.currentUser;
+            if (user) {
+                document.getElementById('profileName').textContent = user.email.split('@')[0];
+                document.getElementById('profileEmail').textContent = user.email;
+                document.getElementById('profileAvatar').textContent = user.email[0].toUpperCase();
+                loadProfilePosts(user.uid);
+            }
+        };
+
+        window.showSettings = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'block';
+        };
+
+        // Settings Functions
+        window.updateProfile = async function() {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            try {
+                // Implement profile update functionality
+                alert('قريباً - تحديث الملف الشخصي');
+            } catch (error) {
+                console.error("Error updating profile:", error);
+                alert('حدث خطأ أثناء تحديث الملف الشخصي');
+            }
+        };
+
+        window.changePassword = async function() {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            try {
+                // Implement password change functionality
+                alert('قريباً - تغيير كلمة المرور');
+            } catch (error) {
+                console.error("Error changing password:", error);
+                alert('حدث خطأ أثناء تغيير كلمة المرور');
+            }
+        };
+
+        window.toggleNotifications = function() {
+            // Implement notifications settings
+            alert('قريباً - إعدادات الإشعارات');
+        };
+
+        window.togglePrivacy = function() {
+            // Implement privacy settings
+            alert('قريباً - إعدادات الخصوصية');
+        };
+
+        // Auth State Observer
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
                 document.getElementById('logoutButton').style.display = 'block';
-                document.getElementById('displayName').value = user.displayName || '';
                 loadPosts();
             } else {
                 document.getElementById('authSection').style.display = 'block';
@@ -429,8 +471,20 @@
                 document.getElementById('profileSection').style.display = 'none';
                 document.getElementById('settingsSection').style.display = 'none';
                 document.getElementById('logoutButton').style.display = 'none';
+                // Clear inputs
+                document.getElementById('emailInput').value = '';
+                document.getElementById('passwordInput').value = '';
             }
         });
+
+        // Initialize app
+        window.onload = function() {
+            // Check if user is already logged in
+            const user = auth.currentUser;
+            if (user) {
+                showHome();
+            }
+        };
     </script>
 </body>
 </html>
