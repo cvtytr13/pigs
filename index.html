@@ -160,7 +160,8 @@
             doc, 
             updateDoc, 
             getDoc, 
-            where 
+            where,
+            serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
@@ -247,12 +248,13 @@
                     const likesCount = post.likes ? post.likes.length : 0;
                     const postElement = document.createElement('div');
                     postElement.className = 'post';
+                    postElement.id = `post-${doc.id}`;
                     postElement.innerHTML = `
                         <strong>${post.displayName || post.userEmail}</strong>
                         <p>${post.content}</p>
                         <div class="post-actions">
                             <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${likesCount}
-                            <i class="fas fa-comment" onclick="toggleComments('${doc.id}')"></i>
+                            <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
                         </div>`;
                     postsDiv.appendChild(postElement);
                     await loadComments(doc.id, postElement);
@@ -397,7 +399,7 @@
                             <p>${post.content}</p>
                             <div class="post-actions">
                                 <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${likesCount}
-                                <i class="fas fa-comment" onclick="toggleComments('${doc.id}')"></i>
+                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
                             </div>
                         </div>`;
                 });
