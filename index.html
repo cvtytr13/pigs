@@ -81,21 +81,8 @@
             color: red;
             display: none;
         }
-        .profile-section, .settings-section {
+        .profile-section {
             display: none;
-        }
-        .comment-section {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .comment-input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-top: 10px;
         }
     </style>
 </head>
@@ -132,18 +119,12 @@
             <h2>البروفايل</h2>
             <div id="profilePosts"></div>
         </div>
-
-        <div id="settingsSection" class="settings-section">
-            <h2>الإعدادات</h2>
-            <input type="text" id="displayName" placeholder="اسم العرض">
-            <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
-        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
@@ -200,90 +181,12 @@
                     content: content,
                     userId: user.uid,
                     userEmail: user.email,
-                    timestamp: serverTimestamp(),
-                    likes: []
+                    timestamp: serverTimestamp()
                 });
                 document.getElementById('postContent').value = '';
                 loadPosts();
             } catch (error) {
                 document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
-            }
-        };
-
-        window.likePost = async function(postId) {
-            const user = auth.currentUser;
-            if (!user) return;
-
-            const postRef = doc(db, 'posts', postId);
-            const post = await getDoc(postRef);
-            const likes = post.data().likes || [];
-
-            if (likes.includes(user.uid)) {
-                await updateDoc(postRef, {
-                    likes: arrayRemove(user.uid)
-                });
-            } else {
-                await updateDoc(postRef, {
-                    likes: arrayUnion(user.uid)
-                });
-            }
-            loadPosts();
-        };
-
-        window.commentOnPost = async function(postId) {
-            const comment = prompt("أدخل تعليقك:");
-            if (!comment) return;
-
-            const user = auth.currentUser;
-            if (!user) return;
-
-            try {
-                await addDoc(collection(db, 'comments'), {
-                    postId: postId,
-                    userId: user.uid,
-                    userEmail: user.email,
-                    comment: comment,
-                    timestamp: serverTimestamp()
-                });
-                loadPosts();
-            } catch (error) {
-                console.error("Error adding comment:", error);
-            }
-        };
-
-        window.showHome = function() {
-            document.getElementById('contentSection').style.display = 'block';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-            loadPosts();
-        };
-
-        window.showProfile = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'block';
-            document.getElementById('settingsSection').style.display = 'none';
-            const user = auth.currentUser;
-            if (user) {
-                loadProfilePosts(user.uid);
-            }
-        };
-
-        window.showSettings = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'block';
-        };
-
-        window.updateProfile = async function() {
-            const displayName = document.getElementById('displayName').value;
-            const user = auth.currentUser;
-            if (user) {
-                try {
-                    await updateProfile(user, { displayName });
-                    alert("تم تحديث البروفايل بنجاح");
-                } catch (error) {
-                    console.error("Error updating profile:", error);
-                }
             }
         };
 
@@ -295,21 +198,15 @@
                 const snapshot = await getDocs(q);
                 postsDiv.innerHTML = '';
 
-                snapshot.forEach(async (doc) => {
+                snapshot.forEach((doc) => {
                     const post = doc.data();
-                    const commentsSnapshot = await getDocs(query(collection(db, 'comments'), where('postId', '==', doc.id)));
-                    const comments = commentsSnapshot.docs.map(commentDoc => commentDoc.data());
-
                     postsDiv.innerHTML += `
                         <div class="post">
                             <strong>${post.userEmail}</strong>
                             <p>${post.content}</p>
                             <div class="post-actions">
-                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${post.likes?.length || 0}
-                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i> ${comments.length}
-                            </div>
-                            <div class="comment-section">
-                                ${comments.map(comment => `<p><strong>${comment.userEmail}:</strong> ${comment.comment}</p>`).join('')}
+                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i>
+                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
                             </div>
                         </div>`;
                 });
@@ -334,7 +231,7 @@
                                 <strong>${post.userEmail}</strong>
                                 <p>${post.content}</p>
                                 <div class="post-actions">
-                                    <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${post.likes?.length || 0}
+                                    <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i>
                                     <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
                                 </div>
                             </div>`;
@@ -344,6 +241,36 @@
                 profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
         }
+
+        window.likePost = function(postId) {
+            // Implement like functionality
+            console.log("Liked post:", postId);
+        };
+
+        window.commentOnPost = function(postId) {
+            // Implement comment functionality
+            console.log("Comment on post:", postId);
+        };
+
+        window.showHome = function() {
+            document.getElementById('contentSection').style.display = 'block';
+            document.getElementById('profileSection').style.display = 'none';
+            loadPosts();
+        };
+
+        window.showProfile = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            const user = auth.currentUser;
+            if (user) {
+                loadProfilePosts(user.uid);
+            }
+        };
+
+        window.showSettings = function() {
+            // Implement settings functionality
+            console.log("Settings clicked");
+        };
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -355,7 +282,6 @@
                 document.getElementById('authSection').style.display = 'block';
                 document.getElementById('contentSection').style.display = 'none';
                 document.getElementById('profileSection').style.display = 'none';
-                document.getElementById('settingsSection').style.display = 'none';
                 document.getElementById('logoutButton').style.display = 'none';
             }
         });
