@@ -124,7 +124,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
@@ -198,18 +198,21 @@
                 const snapshot = await getDocs(q);
                 postsDiv.innerHTML = '';
 
-                snapshot.forEach((doc) => {
+                for (const doc of snapshot.docs) {
                     const post = doc.data();
+                    const likesSnapshot = await getDocs(collection(db, 'posts', doc.id, 'likes'));
+                    const commentsSnapshot = await getDocs(collection(db, 'posts', doc.id, 'comments'));
+
                     postsDiv.innerHTML += `
                         <div class="post">
                             <strong>${post.userEmail}</strong>
                             <p>${post.content}</p>
                             <div class="post-actions">
-                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i>
-                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i>
+                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${likesSnapshot.size}
+                                <i class="fas fa-comment" onclick="commentOnPost('${doc.id}')"></i> ${commentsSnapshot.size}
                             </div>
                         </div>`;
-                });
+                }
             } catch (error) {
                 postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
             }
@@ -242,14 +245,54 @@
             }
         }
 
-        window.likePost = function(postId) {
-            // Implement like functionality
-            console.log("Liked post:", postId);
+        window.likePost = async function(postId) {
+            const user = auth.currentUser;
+            if (!user) {
+                alert("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            const postRef = doc(db, 'posts', postId);
+            const likesRef = collection(db, 'posts', postId, 'likes');
+            const userLikeRef = doc(likesRef, user.uid);
+
+            try {
+                const likeDoc = await getDoc(userLikeRef);
+                if (likeDoc.exists()) {
+                    await deleteDoc(userLikeRef);
+                    console.log("تم إزالة الإعجاب");
+                } else {
+                    await setDoc(userLikeRef, { userId: user.uid });
+                    console.log("تم الإعجاب بالمنشور");
+                }
+                loadPosts();
+            } catch (error) {
+                console.error("حدث خطأ أثناء الإعجاب بالمنشور:", error);
+            }
         };
 
-        window.commentOnPost = function(postId) {
-            // Implement comment functionality
-            console.log("Comment on post:", postId);
+        window.commentOnPost = async function(postId) {
+            const user = auth.currentUser;
+            if (!user) {
+                alert("يجب تسجيل الدخول أولاً");
+                return;
+            }
+
+            const comment = prompt("أضف تعليقك:");
+            if (!comment) return;
+
+            try {
+                await addDoc(collection(db, 'posts', postId, 'comments'), {
+                    userId: user.uid,
+                    userEmail: user.email,
+                    comment: comment,
+                    timestamp: serverTimestamp()
+                });
+                console.log("تم إضافة التعليق");
+                loadPosts();
+            } catch (error) {
+                console.error("حدث خطأ أثناء إضافة التعليق:", error);
+            }
         };
 
         window.showHome = function() {
@@ -263,6 +306,11 @@
             document.getElementById('profileSection').style.display = 'block';
             const user = auth.currentUser;
             if (user) {
+                document.getElementById('profileSection').innerHTML = `
+                    <h2>البروفايل</h2>
+                    <p>البريد الإلكتروني: ${user.email}</p>
+                    <div id="profilePosts"></div>
+                `;
                 loadProfilePosts(user.uid);
             }
         };
