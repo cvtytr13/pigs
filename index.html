@@ -207,8 +207,8 @@
     <script>
         const client = new Appwrite.Client();
         client
-            .setEndpoint('https://cloud.appwrite.io/v1') // استخدم نقطة النهاية الصحيحة
-            .setProject('67a7b2e0003038b4f3fd'); // استخدم Project ID الخاص بك
+            .setEndpoint('https://cloud.appwrite.io/v1') // نقطة النهاية
+            .setProject('67a7b2e0003038b4f3fd'); // استبدل بـ Project ID الخاص بك
 
         const account = new Appwrite.Account(client);
         const database = new Appwrite.Databases(client);
@@ -231,13 +231,13 @@
                 return;
             }
 
-            const user = await account.get();
-            if (!user) {
-                showError('postError', 'يجب تسجيل الدخول أولاً');
-                return;
-            }
-
             try {
+                const user = await account.get();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
                 await database.createDocument(DATABASE_ID, COMMENTS_COLLECTION_ID, 'unique()', {
                     content: content,
                     userId: user.$id,
@@ -256,13 +256,13 @@
         window.toggleLike = async function(postId, event) {
             event.stopPropagation();
 
-            const user = await account.get();
-            if (!user) {
-                showError('postError', 'يجب تسجيل الدخول أولاً');
-                return;
-            }
-
             try {
+                const user = await account.get();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
                 const post = await database.getDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
                 const likes = post.likes || [];
                 const index = likes.indexOf(user.$id);
@@ -285,6 +285,12 @@
             postsDiv.innerHTML = "جاري التحميل...";
 
             try {
+                const user = await account.get();
+                if (!user) {
+                    showError('authError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
                 const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID);
                 postsDiv.innerHTML = '';
                 response.documents.forEach(post => {
@@ -378,7 +384,7 @@
 
             try {
                 await account.create('unique()', email, password);
-                showError('authError', '', false);
+                showError('authError', '');
                 alert('تم إنشاء الحساب بنجاح');
             } catch (error) {
                 showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
@@ -396,7 +402,7 @@
 
             try {
                 await account.createEmailSession(email, password);
-                showError('authError', '', false);
+                showError('authError', '');
                 alert('تم تسجيل الدخول بنجاح');
                 window.location.reload();
             } catch (error) {
@@ -422,15 +428,15 @@
                 return;
             }
 
-            const user = await account.get();
-            if (!user) {
-                showError('postError', 'يجب تسجيل الدخول أولاً');
-                return;
-            }
-
-            document.getElementById('loadingMessage').style.display = 'block';
-
             try {
+                const user = await account.get();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                document.getElementById('loadingMessage').style.display = 'block';
+
                 const mediaUrls = [];
                 for (let i = 0; i < mediaFiles.length; i++) {
                     const file = mediaFiles[i];
@@ -452,7 +458,7 @@
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('postContent').value = '';
                 document.getElementById('mediaInput').value = '';
-                showError('postError', '', false);
+                showError('postError', '');
                 loadPosts();
             } catch (error) {
                 document.getElementById('loadingMessage').style.display = 'none';
@@ -487,23 +493,24 @@
         };
 
         window.updateProfile = async function() {
-            const user = await account.get();
-            if (!user) {
-                showError('authError', 'يجب تسجيل الدخول أولاً');
-                return;
-            }
-
-            const displayName = document.getElementById('displayName').value;
-            const newPassword = document.getElementById('newPassword').value;
-
             try {
+                const user = await account.get();
+                if (!user) {
+                    showError('authError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                const displayName = document.getElementById('displayName').value;
+                const newPassword = document.getElementById('newPassword').value;
+
                 if (displayName) {
                     await account.updateName(displayName);
                 }
                 if (newPassword) {
                     await account.updatePassword(newPassword);
                 }
-                alert("تم تحديث البروفايل بنجاح");
+
+                alert('تم تحديث البروفايل بنجاح');
             } catch (error) {
                 showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
             }
@@ -542,13 +549,13 @@
             }
         }
 
-        function showError(elementId, message, show = true) {
+        function showError(elementId, message) {
             const errorElement = document.getElementById(elementId);
+            errorElement.style.display = message ? 'block' : 'none';
             errorElement.textContent = message;
-            errorElement.style.display = show ? 'block' : 'none';
         }
 
-        // مراقبة حالة المستخدم
+        // مراقبة حالة المستخدم عند تحميل الصفحة
         account.get().then(user => {
             if (user) {
                 document.getElementById('authSection').style.display = 'none';
