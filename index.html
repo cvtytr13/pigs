@@ -386,6 +386,7 @@
                 await account.create('unique()', email, password);
                 showError('authError', '');
                 alert('تم إنشاء الحساب بنجاح');
+                window.location.reload();
             } catch (error) {
                 showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
             }
