@@ -4,6 +4,7 @@ body {
     padding: 0;
     background-color: #f0f2f5;
 }
+
 .navbar {
     background-color: #1877f2;
     padding: 10px 20px;
@@ -15,11 +16,18 @@ body {
     top: 0;
     z-index: 1000;
 }
+
+.navbar-icons i {
+    cursor: pointer;
+    font-size: 20px;
+}
+
 .container {
     max-width: 800px;
     margin: 20px auto;
     padding: 0 20px;
 }
+
 .post-form {
     background: white;
     padding: 20px;
@@ -27,15 +35,7 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 20px;
 }
-.post-input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    resize: none;
-    font-size: 16px;
-}
+
 .button {
     background-color: #1877f2;
     color: white;
@@ -44,14 +44,13 @@ body {
     border-radius: 4px;
     cursor: pointer;
 }
-.post {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+.button.green {
+    background-color: #42b72a;
 }
+
 .error-message {
     color: red;
     display: none;
+    margin-top: 5px;
 }
