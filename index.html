@@ -207,7 +207,7 @@
     <script>
         const client = new Appwrite.Client();
         client
-            .setEndpoint('https://cloud.appwrite.io/v1') // استبدل بـ API Endpoint الخاص بك
+            .setEndpoint('https://cloud.appwrite.io/v1') // استخدم نقطة النهاية الصحيحة
             .setProject('67a7b2e0003038b4f3fd'); // استخدم Project ID الخاص بك
 
         const account = new Appwrite.Account(client);
@@ -226,11 +226,14 @@
             const commentInput = document.getElementById('postCommentInput');
             const content = commentInput.value.trim();
 
-            if (!content || !currentPostId) return;
+            if (!content || !currentPostId) {
+                showError('postError', 'يرجى إدخال تعليق');
+                return;
+            }
 
             const user = await account.get();
             if (!user) {
-                alert('يجب تسجيل الدخول أولاً');
+                showError('postError', 'يجب تسجيل الدخول أولاً');
                 return;
             }
 
@@ -246,7 +249,7 @@
                 commentInput.value = '';
                 loadComments(currentPostId);
             } catch (error) {
-                console.error('Error adding comment:', error);
+                showError('postError', 'حدث خطأ أثناء إضافة التعليق: ' + error.message);
             }
         };
 
@@ -255,7 +258,7 @@
 
             const user = await account.get();
             if (!user) {
-                alert('يجب تسجيل الدخول أولاً');
+                showError('postError', 'يجب تسجيل الدخول أولاً');
                 return;
             }
 
@@ -273,7 +276,7 @@
                 await database.updateDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: likes });
                 loadPosts();
             } catch (error) {
-                console.error('Error toggling like:', error);
+                showError('postError', 'حدث خطأ أثناء الإعجاب: ' + error.message);
             }
         };
 
@@ -306,8 +309,7 @@
                     `;
                 });
             } catch (error) {
-                console.error('Error loading posts:', error);
-                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات";
+                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
             }
         }
 
@@ -337,7 +339,7 @@
 
                 loadComments(postId);
             } catch (error) {
-                console.error('Error loading post:', error);
+                showError('postError', 'حدث خطأ أثناء تحميل المنشور: ' + error.message);
             }
         }
         window.showPostPage = showPostPage;
@@ -361,32 +363,44 @@
                     `;
                 });
             } catch (error) {
-                console.error('Error loading comments:', error);
-                commentsDiv.innerHTML = "حدث خطأ أثناء تحميل التعليقات";
+                showError('postError', 'حدث خطأ أثناء تحميل التعليقات: ' + error.message);
             }
         }
 
         window.register = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
+                return;
+            }
+
             try {
                 await account.create('unique()', email, password);
+                showError('authError', '', false);
                 alert('تم إنشاء الحساب بنجاح');
             } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
+                showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
             }
         };
 
         window.login = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
+                return;
+            }
+
             try {
                 await account.createEmailSession(email, password);
+                showError('authError', '', false);
                 alert('تم تسجيل الدخول بنجاح');
+                window.location.reload();
             } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
+                showError('authError', 'بيانات تسجيل الدخول غير صحيحة: ' + error.message);
             }
         };
 
@@ -395,7 +409,7 @@
                 await account.deleteSession('current');
                 window.location.reload();
             } catch (error) {
-                console.error('Error logging out:', error);
+                showError('authError', 'حدث خطأ أثناء تسجيل الخروج: ' + error.message);
             }
         };
 
@@ -404,15 +418,13 @@
             const mediaFiles = document.getElementById('mediaInput').files;
 
             if (!content && mediaFiles.length === 0) {
-                document.getElementById('postError').style.display = 'block';
-                document.getElementById('postError').textContent = "لا يمكن نشر منشور فارغ";
+                showError('postError', 'لا يمكن نشر منشور فارغ');
                 return;
             }
 
             const user = await account.get();
             if (!user) {
-                document.getElementById('postError').style.display = 'block';
-                document.getElementById('postError').textContent = "يجب تسجيل الدخول أولاً";
+                showError('postError', 'يجب تسجيل الدخول أولاً');
                 return;
             }
 
@@ -440,12 +452,11 @@
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('postContent').value = '';
                 document.getElementById('mediaInput').value = '';
-                document.getElementById('postError').style.display = 'none';
+                showError('postError', '', false);
                 loadPosts();
             } catch (error) {
                 document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('postError').style.display = 'block';
-                document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
+                showError('postError', 'حدث خطأ أثناء النشر: ' + error.message);
             }
         };
 
@@ -478,7 +489,7 @@
         window.updateProfile = async function() {
             const user = await account.get();
             if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
+                showError('authError', 'يجب تسجيل الدخول أولاً');
                 return;
             }
 
@@ -494,7 +505,7 @@
                 }
                 alert("تم تحديث البروفايل بنجاح");
             } catch (error) {
-                alert("حدث خطأ أثناء تحديث البروفايل");
+                showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
             }
         };
 
@@ -527,8 +538,14 @@
                         </div>`;
                 });
             } catch (error) {
-                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
+                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
             }
+        }
+
+        function showError(elementId, message, show = true) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.style.display = show ? 'block' : 'none';
         }
 
         // مراقبة حالة المستخدم
@@ -547,6 +564,8 @@
                 document.getElementById('postPage').style.display = 'none';
                 document.getElementById('logoutButton').style.display = 'none';
             }
+        }).catch(error => {
+            console.error('Error checking user session:', error);
         });
     </script>
 </body>
