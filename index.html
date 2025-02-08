@@ -7,6 +7,7 @@
     <title>منصة التواصل الاجتماعي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* نفس التنسيقات CSS السابقة */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -118,9 +119,21 @@
             background-color: #f9f9f9;
             border-radius: 4px;
         }
+        .like-button, .comment-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #1877f2;
+            padding: 5px 10px;
+        }
+        .like-button:hover, .comment-button:hover {
+            background-color: #f0f2f5;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
+    <!-- نفس هيكل HTML السابق -->
     <div class="navbar">
         <div class="navbar-icons">
             <i class="fas fa-home" onclick="showHome()"></i>
@@ -131,7 +144,6 @@
     </div>
 
     <div class="container">
-        <!-- قسم تسجيل الدخول -->
         <div id="authSection">
             <h2>تسجيل الدخول</h2>
             <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
@@ -141,7 +153,6 @@
             <div id="authError" class="error-message"></div>
         </div>
 
-        <!-- قسم المحتوى الرئيسي -->
         <div id="contentSection" style="display: none;">
             <div class="post-form">
                 <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
@@ -151,7 +162,6 @@
             <div id="posts"></div>
         </div>
 
-        <!-- صفحة البوست المفرد -->
         <div id="postPage" class="post-page" style="display: none;">
             <div id="singlePost"></div>
             <div class="comments-section">
@@ -162,13 +172,11 @@
             </div>
         </div>
 
-        <!-- قسم البروفايل -->
         <div id="profileSection" class="profile-section">
             <h2>البروفايل</h2>
             <div id="profilePosts"></div>
         </div>
 
-        <!-- قسم الإعدادات -->
         <div id="settingsSection" class="settings-section">
             <h2>الإعدادات</h2>
             <input type="text" id="displayName" placeholder="الاسم المعروض">
@@ -218,64 +226,12 @@
 
         let currentPostId = null;
 
-        // دالة لعرض صفحة البوست المفرد
-        async function showPostPage(postId) {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('postPage').style.display = 'block';
-            
-            const postRef = doc(db, 'posts', postId);
-            const postDoc = await getDoc(postRef);
-            
-            if (postDoc.exists()) {
-                const post = postDoc.data();
-                const singlePostDiv = document.getElementById('singlePost');
-                
-                singlePostDiv.innerHTML = `
-                    <div class="post">
-                        <strong>${post.displayName || post.userEmail}</strong>
-                        <p>${post.content}</p>
-                        <div class="post-actions-page">
-                            <button onclick="toggleLike('${postId}')">
-                                <i class="fas fa-heart"></i> 
-                                ${post.likes?.length || 0}
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                loadComments(postId);
-            }
-        }
-
-        // دالة تحميل التعليقات
-        async function loadComments(postId) {
-            const commentsDiv = document.getElementById('postComments');
-            commentsDiv.innerHTML = "جاري تحميل التعليقات...";
-            
-            const commentsRef = collection(db, 'posts', postId, 'comments');
-            const q = query(commentsRef, orderBy('timestamp', 'asc'));
-            const snapshot = await getDocs(q);
-            
-            commentsDiv.innerHTML = '';
-            snapshot.forEach(doc => {
-                const comment = doc.data();
-                commentsDiv.innerHTML += `
-                    <div class="comment">
-                        <strong>${comment.displayName || comment.userEmail}</strong>
-                        <p>${comment.content}</p>
-                        <small>${new Date(comment.timestamp?.toDate()).toLocaleString()}</small>
-                    </div>
-                `;
-            });
-        }
-
-        // دالة إضافة تعليق
-        async function submitComment() {
+        // تعريف الدوال العامة
+        window.submitComment = async function() {
             const commentInput = document.getElementById('postCommentInput');
             const content = commentInput.value.trim();
-            const postId = currentPostId;
             
-            if (!content || !postId) return;
+            if (!content || !currentPostId) return;
             
             const user = auth.currentUser;
             if (!user) {
@@ -284,7 +240,7 @@
             }
             
             try {
-                await addDoc(collection(db, 'posts', postId, 'comments'), {
+                await addDoc(collection(db, 'posts', currentPostId, 'comments'), {
                     content: content,
                     userId: user.uid,
                     displayName: user.displayName || user.email,
@@ -292,44 +248,20 @@
                 });
                 
                 commentInput.value = '';
-                loadComments(postId);
+                loadComments(currentPostId);
             } catch (error) {
                 console.error('Error adding comment:', error);
             }
-        }
+        };
 
-        // تعديل دالة عرض البوستات الرئيسية
-        async function loadPosts() {
-            const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = "جاري التحميل...";
+        window.toggleLike = async function(postId, event) {
+            event.stopPropagation(); // منع انتشار الحدث للعنصر الأب
             
-            try {
-                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
-                const snapshot = await getDocs(q);
-                
-                postsDiv.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const post = doc.data();
-                    postsDiv.innerHTML += `
-                        <div class="post" onclick="showPostPage('${doc.id}')">
-                            <strong>${post.displayName || post.userEmail}</strong>
-                            <p>${post.content}</p>
-                            <div class="post-actions">
-                                <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                                <i class="fas fa-comment"></i> 
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                console.error('Error loading posts:', error);
-            }
-        }
-
-        // دالة الإعجاب المعدلة
-        window.toggleLike = async function(postId) {
             const user = auth.currentUser;
-            if (!user) return;
+            if (!user) {
+                alert('يجب تسجيل الدخول أولاً');
+                return;
+            }
             
             const postRef = doc(db, 'posts', postId);
             const postDoc = await getDoc(postRef);
@@ -345,63 +277,145 @@
             }
             
             await updateDoc(postRef, { likes: likes });
-            showPostPage(postId);
+            loadPosts(); // تحديث قائمة المنشورات
         };
 
-        // إدارة حالة الصفحة
-        window.showPostPage = function(postId) {
-            currentPostId = postId;
-            window.history.pushState({postId}, '', `?postId=${postId}`);
-            showPostPage(postId);
-        };
-
-        // التعامل مع زر الرجوع
-        window.onpopstate = function(event) {
-            if (event.state?.postId) {
-                showPostPage(event.state.postId);
-            } else {
-                document.getElementById('postPage').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
+        // دالة تحميل المنشورات المحسنة
+        async function loadPosts() {
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = "جاري التحميل...";
+            
+            try {
+                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                postsDiv.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const post = doc.data();
+                    const postId = doc.id;
+                    postsDiv.innerHTML += `
+                        <div class="post">
+                            <div onclick="showPostPage('${postId}')">
+                                <strong>${post.displayName || post.userEmail}</strong>
+                                <p>${post.content}</p>
+                            </div>
+                            <div class="post-actions">
+                                <button class="like-button" onclick="toggleLike('${postId}', event)">
+                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                </button>
+                                <button class="comment-button" onclick="showPostPage('${postId}')">
+                                    <i class="fas fa-comment"></i> تعليق
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات";
             }
-        };
+        }
 
-        // تسجيل مستخدم جديد
+        // تحسين دالة عرض صفحة البوست المفرد
+        async function showPostPage(postId) {
+            currentPostId = postId;
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'block';
+            
+            const postRef = doc(db, 'posts', postId);
+            const postDoc = await getDoc(postRef);
+            
+            if (postDoc.exists()) {
+                const post = postDoc.data();
+                const singlePostDiv = document.getElementById('singlePost');
+                
+                singlePostDiv.innerHTML = `
+                    <div class="post">
+                        <strong>${post.displayName || post.userEmail}</strong>
+                        <p>${post.content}</p>
+                        <div class="post-actions">
+                            <button class="like-button" onclick="toggleLike('${postId}', event)">
+                                <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                loadComments(postId);
+            }
+        }
+        window.showPostPage = showPostPage;
+
+        // دالة تحميل التعليقات
+        async function loadComments(postId) {
+            const commentsDiv = document.getElementById('postComments');
+            commentsDiv.innerHTML = "جاري تحميل التعليقات...";
+            
+            try {
+                const commentsRef = collection(db, 'posts', postId, 'comments');
+                const q = query(commentsRef, orderBy('timestamp', 'asc'));
+                const snapshot = await getDocs(q);
+                
+                commentsDiv.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const comment = doc.data();
+                    commentsDiv.innerHTML += `
+                        <div class="comment">
+                            <strong>${comment.displayName || comment.userEmail}</strong>
+                            <p>${comment.content}</p>
+                            <small>${comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleString() : ''}</small>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading comments:', error);
+                commentsDiv.innerHTML = "حدث خطأ أثناء تحميل التعليقات";
+            }
+        }
+
+        // باقي الدوال السابقة
         window.register = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
             } catch (error) {
+                document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
             }
         };
 
-        // تسجيل الدخول
         window.login = async function() {
             const email = document.getElementById('emailInput').value;
             const password = document.getElementById('passwordInput').value;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
+                document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
             }
         };
 
-        // تسجيل الخروج
         window.logout = async function() {
-            await signOut(auth);
+            try {
+                await signOut(auth);
+                window.location.reload();
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
         };
 
-        // إنشاء منشور جديد
         window.createPost = async function() {
             const content = document.getElementById('postContent').value.trim();
             if (!content) {
+                document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "لا يمكن نشر منشور فارغ";
                 return;
             }
             
             const user = auth.currentUser;
             if (!user) {
+                document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "يجب تسجيل الدخول أولاً";
                 return;
             }
@@ -416,13 +430,14 @@
                     timestamp: serverTimestamp()
                 });
                 document.getElementById('postContent').value = '';
+                document.getElementById('postError').style.display = 'none';
                 loadPosts();
             } catch (error) {
+                document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
             }
         };
 
-        // عرض الصفحة الرئيسية
         window.showHome = function() {
             document.getElementById('contentSection').style.display = 'block';
             document.getElementById('profileSection').style.display = 'none';
@@ -431,7 +446,6 @@
             loadPosts();
         };
 
-        // عرض البروفايل
         window.showProfile = function() {
             document.getElementById('contentSection').style.display = 'none';
             document.getElementById('profileSection').style.display = 'block';
@@ -443,7 +457,6 @@
             }
         };
 
-        // عرض الإعدادات
         window.showSettings = function() {
             document.getElementById('contentSection').style.display = 'none';
             document.getElementById('profileSection').style.display = 'none';
@@ -451,7 +464,6 @@
             document.getElementById('postPage').style.display = 'none';
         };
 
-        // تحديث البروفايل
         window.updateProfile = async function() {
             const user = auth.currentUser;
             if (!user) {
@@ -475,25 +487,35 @@
             }
         };
 
-        // تحميل منشورات البروفايل
         async function loadProfilePosts(userId) {
             const profilePostsDiv = document.getElementById('profilePosts');
             profilePostsDiv.innerHTML = "جاري التحميل...";
             try {
-                const q = query(collection(db, 'posts'), where('userId', '==', userId), orderBy('timestamp', 'desc'), limit(20));
+                const q = query(
+                    collection(db, 'posts'), 
+                    where('userId', '==', userId), 
+                    orderBy('timestamp', 'desc'), 
+                    limit(20)
+                );
                 const snapshot = await getDocs(q);
                 profilePostsDiv.innerHTML = '';
 
                 snapshot.forEach((doc) => {
                     const post = doc.data();
-                    const likesCount = post.likes ? post.likes.length : 0;
+                    const postId = doc.id;
                     profilePostsDiv.innerHTML += `
                         <div class="post">
-                            <strong>${post.displayName || post.userEmail}</strong>
-                            <p>${post.content}</p>
+                            <div onclick="showPostPage('${postId}')">
+                                <strong>${post.displayName || post.userEmail}</strong>
+                                <p>${post.content}</p>
+                            </div>
                             <div class="post-actions">
-                                <i class="fas fa-heart" onclick="likePost('${doc.id}')"></i> ${likesCount}
-                                <i class="fas fa-comment" onclick="openCommentModal('${doc.id}')"></i>
+                                <button class="like-button" onclick="toggleLike('${postId}', event)">
+                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                </button>
+                                <button class="comment-button" onclick="showPostPage('${postId}')">
+                                    <i class="fas fa-comment"></i> تعليق
+                                </button>
                             </div>
                         </div>`;
                 });
@@ -502,7 +524,17 @@
             }
         }
 
-// مراقبة حالة المستخدم
+        // إضافة معالج زر الرجوع
+        window.onpopstate = function(event) {
+            if (event.state?.postId) {
+                showPostPage(event.state.postId);
+            } else {
+                document.getElementById('postPage').style.display = 'none';
+                document.getElementById('contentSection').style.display = 'block';
+            }
+        };
+
+        // مراقبة حالة المستخدم
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('authSection').style.display = 'none';
@@ -515,6 +547,7 @@
                 document.getElementById('contentSection').style.display = 'none';
                 document.getElementById('profileSection').style.display = 'none';
                 document.getElementById('settingsSection').style.display = 'none';
+                document.getElementById('postPage').style.display = 'none';
                 document.getElementById('logoutButton').style.display = 'none';
             }
         });
