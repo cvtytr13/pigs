@@ -137,6 +137,24 @@
             max-width: 100%;
             border-radius: 8px;
         }
+        .loading-overlay {
+            position: relative;
+            opacity: 0.7;
+        }
+        .loading-bar {
+            width: 100%;
+            height: 5px;
+            background-color: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .loading-progress {
+            height: 100%;
+            background-color: #1877f2;
+            width: 0%;
+            transition: width 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -165,6 +183,9 @@
                 <input type="file" id="mediaInput" accept="image/*, video/*" multiple style="margin-bottom: 10px;">
                 <button onclick="createPost()" class="button">نشر</button>
                 <div id="postError" class="error-message"></div>
+                <div id="loadingBar" class="loading-bar" style="display: none;">
+                    <div id="loadingProgress" class="loading-progress"></div>
+                </div>
             </div>
             <div id="posts"></div>
         </div>
@@ -217,7 +238,7 @@
             where,
             serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
-        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js';
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
@@ -439,12 +460,32 @@
 
             try {
                 const mediaUrls = [];
+                const loadingBar = document.getElementById('loadingBar');
+                const loadingProgress = document.getElementById('loadingProgress');
+                loadingBar.style.display = 'block';
+                loadingProgress.style.width = '0%';
+
                 for (let i = 0; i < mediaFiles.length; i++) {
                     const file = mediaFiles[i];
                     const storageRef = ref(storage, `posts/${user.uid}/${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    const url = await getDownloadURL(storageRef);
-                    mediaUrls.push(url);
+                    const uploadTask = uploadBytesResumable(storageRef, file);
+
+                    await new Promise((resolve, reject) => {
+                        uploadTask.on('state_changed', 
+                            (snapshot) => {
+                                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                                loadingProgress.style.width = `${progress}%`;
+                            },
+                            (error) => {
+                                reject(error);
+                            },
+                            async () => {
+                                const url = await getDownloadURL(uploadTask.snapshot.ref);
+                                mediaUrls.push(url);
+                                resolve();
+                            }
+                        );
+                    });
                 }
 
                 await addDoc(collection(db, 'posts'), {
@@ -456,13 +497,16 @@
                     mediaUrls: mediaUrls,
                     timestamp: serverTimestamp()
                 });
+
                 document.getElementById('postContent').value = '';
                 document.getElementById('mediaInput').value = '';
                 document.getElementById('postError').style.display = 'none';
+                loadingBar.style.display = 'none';
                 loadPosts();
             } catch (error) {
                 document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "حدث خطأ أثناء النشر";
+                document.getElementById('loadingBar').style.display = 'none';
             }
         };
 
