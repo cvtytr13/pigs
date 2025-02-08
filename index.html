@@ -90,6 +90,20 @@
             background-color: #f9f9f9;
             border-radius: 4px;
         }
+        .comment-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .comment-actions button {
+            background: none;
+            border: none;
+            color: #1877f2;
+            cursor: pointer;
+        }
+        .comment-actions button:hover {
+            text-decoration: underline;
+        }
         .comment-modal {
             display: none;
             position: fixed;
@@ -262,6 +276,10 @@
                         <div class="comment">
                             <strong>${comment.displayName || comment.userEmail}</strong>
                             <p>${comment.content}</p>
+                            <div class="comment-actions">
+                                <button onclick="likeComment('${doc.id}')">إعجاب</button>
+                                <button onclick="replyToComment('${doc.id}')">رد</button>
+                            </div>
                         </div>`;
                 });
             }
