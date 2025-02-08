@@ -130,6 +130,13 @@
             background-color: #f0f2f5;
             border-radius: 4px;
         }
+        .media-preview {
+            margin-top: 10px;
+        }
+        .media-preview img, .media-preview video {
+            max-width: 100%;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -155,6 +162,7 @@
         <div id="contentSection" style="display: none;">
             <div class="post-form">
                 <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
+                <input type="file" id="mediaInput" accept="image/*, video/*" multiple style="margin-bottom: 10px;">
                 <button onclick="createPost()" class="button">نشر</button>
                 <div id="postError" class="error-message"></div>
             </div>
@@ -209,6 +217,7 @@
             where,
             serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
@@ -222,6 +231,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         let currentPostId = null;
 
@@ -297,13 +307,16 @@
                             <div onclick="showPostPage('${postId}')">
                                 <strong>${post.displayName || post.userEmail}</strong>
                                 <p>${post.content}</p>
+                                ${post.mediaUrls ? post.mediaUrls.map(url => 
+                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                                ).join('') : ''}
                             </div>
                             <div class="post-actions">
                                 <button class="like-button" onclick="toggleLike('${postId}', event)">
                                     <i class="fas fa-heart"></i> ${post.likes?.length || 0}
                                 </button>
                                 <button class="comment-button" onclick="showPostPage('${postId}')">
-                                    <i class="fas fa-comment"></i> تعليق
+                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
                                 </button>
                             </div>
                         </div>
@@ -332,6 +345,9 @@
                     <div class="post">
                         <strong>${post.displayName || post.userEmail}</strong>
                         <p>${post.content}</p>
+                        ${post.mediaUrls ? post.mediaUrls.map(url => 
+                            url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                        ).join('') : ''}
                         <div class="post-actions">
                             <button class="like-button" onclick="toggleLike('${postId}', event)">
                                 <i class="fas fa-heart"></i> ${post.likes?.length || 0}
@@ -406,7 +422,9 @@
 
         window.createPost = async function() {
             const content = document.getElementById('postContent').value.trim();
-            if (!content) {
+            const mediaFiles = document.getElementById('mediaInput').files;
+            
+            if (!content && mediaFiles.length === 0) {
                 document.getElementById('postError').style.display = 'block';
                 document.getElementById('postError').textContent = "لا يمكن نشر منشور فارغ";
                 return;
@@ -420,15 +438,26 @@
             }
 
             try {
+                const mediaUrls = [];
+                for (let i = 0; i < mediaFiles.length; i++) {
+                    const file = mediaFiles[i];
+                    const storageRef = ref(storage, `posts/${user.uid}/${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    const url = await getDownloadURL(storageRef);
+                    mediaUrls.push(url);
+                }
+
                 await addDoc(collection(db, 'posts'), {
                     content: content,
                     userId: user.uid,
                     userEmail: user.email,
                     displayName: user.displayName || user.email,
                     likes: [],
+                    mediaUrls: mediaUrls,
                     timestamp: serverTimestamp()
                 });
                 document.getElementById('postContent').value = '';
+                document.getElementById('mediaInput').value = '';
                 document.getElementById('postError').style.display = 'none';
                 loadPosts();
             } catch (error) {
@@ -507,13 +536,16 @@
                             <div onclick="showPostPage('${postId}')">
                                 <strong>${post.displayName || post.userEmail}</strong>
                                 <p>${post.content}</p>
+                                ${post.mediaUrls ? post.mediaUrls.map(url => 
+                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                                ).join('') : ''}
                             </div>
                             <div class="post-actions">
                                 <button class="like-button" onclick="toggleLike('${postId}', event)">
                                     <i class="fas fa-heart"></i> ${post.likes?.length || 0}
                                 </button>
                                 <button class="comment-button" onclick="showPostPage('${postId}')">
-                                    <i class="fas fa-comment"></i> تعليق
+                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
                                 </button>
                             </div>
                         </div>`;
