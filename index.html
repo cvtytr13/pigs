@@ -1,174 +1,673 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق التواصل باستخدام Supabase</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>منصة التواصل الاجتماعي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
-        .container { max-width: 500px; margin: auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
-        input, button, textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; }
-        .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #fff; border-radius: 5px; text-align: left; }
-        .hidden { display: none; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+        }
+        .navbar {
+            background-color: #1877f2;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar-icons {
+            display: flex;
+            gap: 20px;
+        }
+        .navbar-icons i {
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .post-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .post-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            resize: none;
+            font-size: 16px;
+        }
+        .button {
+            background-color: #1877f2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .post {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .post:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .post-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .post-actions i {
+            cursor: pointer;
+            color: #1877f2;
+        }
+        .error-message {
+            color: red;
+            display: none;
+            margin: 10px 0;
+        }
+        .profile-section, .settings-section {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .post-page {
+            padding: 20px;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+        .comments-section {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .comment-input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .comment {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .like-button, .comment-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #1877f2;
+            padding: 5px 10px;
+        }
+        .like-button:hover, .comment-button:hover {
+            background-color: #f0f2f5;
+            border-radius: 4px;
+        }
+        .media-preview {
+            margin-top: 10px;
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        #loadingMessage {
+            font-size: 14px;
+            color: #1877f2;
+            margin-top: 10px;
+        }
+        .fa-spinner {
+            margin-right: 5px;
+        }
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #authSection {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        #logoutButton {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h2>تسجيل الدخول / التسجيل</h2>
-        <input type="email" id="email" placeholder="البريد الإلكتروني">
-        <input type="password" id="password" placeholder="كلمة المرور">
-        <button onclick="register()">تسجيل</button>
-        <button onclick="login()">دخول</button>
-        <button onclick="logout()" class="hidden" id="logoutBtn">تسجيل الخروج</button>
-
-        <h2>إضافة منشور</h2>
-        <textarea id="postContent" placeholder="اكتب منشورك هنا"></textarea>
-        <button onclick="addPost()">نشر</button>
-
-        <h2>المنشورات</h2>
-        <div id="posts"></div>
+    <div class="navbar">
+        <div class="navbar-icons">
+            <i class="fas fa-home" onclick="showHome()"></i>
+            <i class="fas fa-user" onclick="showProfile()"></i>
+            <i class="fas fa-cog" onclick="showSettings()"></i>
+        </div>
+        <button onclick="logout()" id="logoutButton" style="display: none;">تسجيل الخروج</button>
     </div>
 
+    <div class="container">
+        <div id="authSection">
+            <h2>تسجيل الدخول</h2>
+            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
+            <input type="password" id="passwordInput" placeholder="كلمة المرور">
+            <button onclick="login()" class="button">تسجيل الدخول</button>
+            <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب</button>
+            <div id="authError" class="error-message"></div>
+        </div>
+
+        <div id="contentSection" style="display: none;">
+            <div class="post-form">
+                <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
+                <input type="file" id="mediaInput" accept="image/*, video/*" multiple style="margin-bottom: 10px;">
+                <button onclick="createPost()" class="button">نشر</button>
+                <div id="postError" class="error-message"></div>
+                <div id="loadingMessage" style="display: none;">
+                    جاري التحميل والنشر... <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </div>
+            <div id="posts"></div>
+        </div>
+
+        <div id="postPage" class="post-page" style="display: none;">
+            <div id="singlePost"></div>
+            <div class="comments-section">
+                <h3>التعليقات</h3>
+                <div id="postComments"></div>
+                <textarea id="postCommentInput" class="comment-input" rows="3" placeholder="أضف تعليقًا..."></textarea>
+                <button onclick="submitComment()" class="button">إرسال التعليق</button>
+            </div>
+        </div>
+
+        <div id="profileSection" class="profile-section">
+            <h2>البروفايل</h2>
+            <div id="profilePosts"></div>
+        </div>
+
+        <div id="settingsSection" class="settings-section">
+            <h2>الإعدادات</h2>
+            <input type="text" id="displayName" placeholder="الاسم المعروض">
+            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة">
+            <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // **تهيئة Supabase**
-        const SUPABASE_URL = "https://xvftfiwrnjbgyvfe.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5c...";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // تهيئة Supabase
+        const supabaseUrl = 'https://xvftfivwrnjbgyvfeimz.supabase.co';
+        const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // استبدل بالمفتاح الخاص بك
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // **تسجيل مستخدم جديد**
-        async function register() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const { error } = await supabase.auth.signUp({ email, password });
+        let currentPostId = null;
 
-            if (error) {
-                alert("❌ خطأ في التسجيل: " + error.message);
-            } else {
-                alert("✅ تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
-            }
-        }
+        // وظائف التطبيق الرئيسية
+        window.submitComment = async function() {
+            const commentInput = document.getElementById('postCommentInput');
+            const content = commentInput.value.trim();
 
-        // **تسجيل الدخول**
-        async function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                alert("❌ خطأ في تسجيل الدخول: " + error.message);
-            } else {
-                alert("✅ تم تسجيل الدخول بنجاح!");
-                document.getElementById("logoutBtn").classList.remove("hidden");
-                getPosts();
-            }
-        }
-
-        // **تسجيل الخروج**
-        async function logout() {
-            await supabase.auth.signOut();
-            alert("🚪 تم تسجيل الخروج!");
-            location.reload(); // تحديث الصفحة بعد تسجيل الخروج
-        }
-
-        // **إضافة منشور**
-        async function addPost() {
-            const content = document.getElementById('postContent').value;
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-
-            if (userError || !userData.user) {
-                alert("⚠️ يجب تسجيل الدخول أولاً!");
+            if (!content || !currentPostId) {
+                showError('postError', 'يرجى إدخال تعليق');
                 return;
             }
 
-            const userId = userData.user.id;
-            const { error } = await supabase.from("posts").insert([{ content, user_id: userId }]);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
 
-            if (error) {
-                alert("❌ خطأ في نشر المنشور: " + error.message);
-            } else {
-                alert("✅ تم نشر المنشور!");
-                document.getElementById('postContent').value = ""; // مسح المحتوى بعد النشر
-                getPosts();
+                const { error } = await supabase
+                    .from('comments')
+                    .insert([
+                        {
+                            content: content,
+                            user_id: user.id,
+                            display_name: user.email,
+                            post_id: currentPostId,
+                            timestamp: new Date().toISOString()
+                        }
+                    ]);
+
+                if (error) throw error;
+
+                commentInput.value = '';
+                loadComments(currentPostId);
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء إضافة التعليق: ' + error.message);
+            }
+        };
+
+        window.toggleLike = async function(postId, event) {
+            event.stopPropagation();
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                const { data: post, error: postError } = await supabase
+                    .from('posts')
+                    .select('likes')
+                    .eq('id', postId)
+                    .single();
+
+                if (postError) throw postError;
+
+                const likes = post.likes || [];
+                const index = likes.indexOf(user.id);
+
+                if (index === -1) {
+                    likes.push(user.id);
+                } else {
+                    likes.splice(index, 1);
+                }
+
+                const { error: updateError } = await supabase
+                    .from('posts')
+                    .update({ likes: likes })
+                    .eq('id', postId);
+
+                if (updateError) throw updateError;
+
+                loadPosts();
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء الإعجاب: ' + error.message);
+            }
+        };
+
+        async function loadPosts() {
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = "جاري التحميل...";
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showError('authError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                const { data: posts, error } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .order('timestamp', { ascending: false });
+
+                if (error) throw error;
+
+                postsDiv.innerHTML = '';
+                posts.forEach(post => {
+                    postsDiv.innerHTML += `
+                        <div class="post">
+                            <div onclick="showPostPage('${post.id}')">
+                                <strong>${post.display_name || post.user_email}</strong>
+                                <p>${post.content}</p>
+                                ${post.media_urls ? post.media_urls.map(url => 
+                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                                ).join('') : ''}
+                            </div>
+                            <div class="post-actions">
+                                <button class="like-button" onclick="toggleLike('${post.id}', event)">
+                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                </button>
+                                <button class="comment-button" onclick="showPostPage('${post.id}')">
+                                    <i class="fas fa-comment"></i> ${post.comments_count || 0}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
             }
         }
 
-        // **جلب المنشورات**
-        async function getPosts() {
-            const { data, error } = await supabase.from("posts").select("*").order("created_at", { ascending: false });
+        async function showPostPage(postId) {
+            currentPostId = postId;
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'block';
 
-            if (error) {
-                alert("❌ خطأ في تحميل المنشورات: " + error.message);
-            } else {
-                document.getElementById('posts').innerHTML = data.map(post => `
+            try {
+                const { data: post, error } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .eq('id', postId)
+                    .single();
+
+                if (error) throw error;
+
+                const singlePostDiv = document.getElementById('singlePost');
+                singlePostDiv.innerHTML = `
                     <div class="post">
+                        <strong>${post.display_name || post.user_email}</strong>
                         <p>${post.content}</p>
-                        <button onclick="likePost(${post.id})">👍 إعجاب (${post.likes || 0})</button>
-                        <button onclick="addComment(${post.id})">💬 تعليق</button>
-                        <div id="comments-${post.id}"></div>
+                        ${post.media_urls ? post.media_urls.map(url => 
+                            url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                        ).join('') : ''}
+                        <div class="post-actions">
+                            <button class="like-button" onclick="toggleLike('${post.id}', event)">
+                                <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                            </button>
+                        </div>
                     </div>
-                `).join('');
-                data.forEach(post => loadComments(post.id)); // تحميل التعليقات لكل منشور
+                `;
+
+                loadComments(postId);
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء تحميل المنشور: ' + error.message);
             }
         }
+        window.showPostPage = showPostPage;
 
-        // **إضافة إعجاب للمنشور**
-        async function likePost(postId) {
-            const { data: post, error } = await supabase.from("posts").select("likes").eq("id", postId).single();
-
-            if (error) {
-                alert("❌ خطأ في جلب الإعجابات: " + error.message);
-                return;
-            }
-
-            const newLikes = (post.likes || 0) + 1;
-            await supabase.from("posts").update({ likes: newLikes }).eq("id", postId);
-            getPosts();
-        }
-
-        // **إضافة تعليق**
-        async function addComment(postId) {
-            const comment = prompt("💬 اكتب تعليقك:");
-            if (!comment) return;
-
-            await supabase.from("comments").insert([{ post_id: postId, content: comment }]);
-            alert("✅ تمت إضافة تعليقك!");
-            loadComments(postId);
-        }
-
-        // **جلب التعليقات لمنشور معين**
         async function loadComments(postId) {
-            const { data, error } = await supabase.from("comments").select("*").eq("post_id", postId);
+            const commentsDiv = document.getElementById('postComments');
+            commentsDiv.innerHTML = "جاري تحميل التعليقات...";
 
-            if (error) {
-                console.log("❌ خطأ في تحميل التعليقات:", error.message);
+            try {
+                const { data: comments, error } = await supabase
+                    .from('comments')
+                    .select('*')
+                    .eq('post_id', postId)
+                    .order('timestamp', { ascending: true });
+
+                if (error) throw error;
+
+                commentsDiv.innerHTML = '';
+                comments.forEach(comment => {
+                    commentsDiv.innerHTML += `
+                        <div class="comment">
+                            <strong>${comment.display_name || comment.user_email}</strong>
+                            <p>${comment.content}</p>
+                            <small>${new Date(comment.timestamp).toLocaleString()}</small>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء تحميل التعليقات: ' + error.message);
+            }
+        }
+
+        window.register = async function() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
                 return;
             }
 
-            document.getElementById(`comments-${postId}`).innerHTML = data.map(comment => `
-                <p>💬 ${comment.content}</p>
-            `).join('');
-        }
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                });
 
-        // **التأكد من الجداول عند التحميل**
-        async function checkTables() {
-            const { data, error } = await supabase.from("pg_tables").select("tablename");
+                if (error) throw error;
 
-            if (error || !data) {
-                alert("⚠️ يرجى التأكد من إنشاء الجداول في Supabase.");
+                showError('authError', '');
+                alert('تم إنشاء الحساب بنجاح');
+                window.location.reload();
+            } catch (error) {
+                showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
+            }
+        };
+
+        window.login = async function() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
                 return;
             }
 
-            const tableNames = data.map(t => t.tablename);
-            if (!tableNames.includes("users") || !tableNames.includes("posts") || !tableNames.includes("comments")) {
-                alert("⚠️ يرجى التأكد من إنشاء الجداول في Supabase.");
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) throw error;
+
+                showError('authError', '');
+                alert('تم تسجيل الدخول بنجاح');
+                window.location.reload();
+            } catch (error) {
+                showError('authError', 'بيانات تسجيل الدخول غير صحيحة: ' + error.message);
+            }
+        };
+
+        window.logout = async function() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+                window.location.reload();
+            } catch (error) {
+                showError('authError', 'حدث خطأ أثناء تسجيل الخروج: ' + error.message);
+            }
+        };
+
+        window.createPost = async function() {
+            const content = document.getElementById('postContent').value.trim();
+            const mediaFiles = document.getElementById('mediaInput').files;
+
+            if (!content && mediaFiles.length === 0) {
+                showError('postError', 'لا يمكن نشر منشور فارغ');
+                return;
+            }
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                document.getElementById('loadingMessage').style.display = 'block';
+
+                const mediaUrls = [];
+                for (let i = 0; i < mediaFiles.length; i++) {
+                    const file = mediaFiles[i];
+                    const filePath = `media/${user.id}/${file.name}`;
+                    const { data, error } = await supabase
+                        .storage
+                        .from('media')
+                        .upload(filePath, file);
+
+                    if (error) throw error;
+
+                    const { data: { publicUrl } } = await supabase
+                        .storage
+                        .from('media')
+                        .getPublicUrl(filePath);
+
+                    mediaUrls.push(publicUrl);
+                }
+
+                const { error } = await supabase
+                    .from('posts')
+                    .insert([
+                        {
+                            content: content,
+                            user_id: user.id,
+                            user_email: user.email,
+                            display_name: user.email,
+                            likes: [],
+                            media_urls: mediaUrls,
+                            timestamp: new Date().toISOString()
+                        }
+                    ]);
+
+                if (error) throw error;
+
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('postContent').value = '';
+                document.getElementById('mediaInput').value = '';
+                showError('postError', '');
+                loadPosts();
+            } catch (error) {
+                document.getElementById('loadingMessage').style.display = 'none';
+                showError('postError', 'حدث خطأ أثناء النشر: ' + error.message);
+            }
+        };
+
+        window.showHome = function() {
+            document.getElementById('contentSection').style.display = 'block';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'none';
+            loadPosts();
+        };
+
+        window.showProfile = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            document.getElementById('settingsSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'none';
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (user) {
+                    loadProfilePosts(user.id);
+                }
+            });
+        };
+
+        window.showSettings = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'block';
+            document.getElementById('postPage').style.display = 'none';
+        };
+
+        window.updateProfile = async function() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showError('authError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                const displayName = document.getElementById('displayName').value;
+                const newPassword = document.getElementById('newPassword').value;
+
+                if (displayName) {
+                    const { error } = await supabase.auth.updateUser({
+                        data: { display_name: displayName }
+                    });
+                    if (error) throw error;
+                }
+                if (newPassword) {
+                    const { error } = await supabase.auth.updateUser({
+                        password: newPassword
+                    });
+                    if (error) throw error;
+                }
+
+                alert('تم تحديث البروفايل بنجاح');
+            } catch (error) {
+                showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
+            }
+        };
+
+        async function loadProfilePosts(userId) {
+            const profilePostsDiv = document.getElementById('profilePosts');
+            profilePostsDiv.innerHTML = "جاري التحميل...";
+            try {
+                const { data: posts, error } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('timestamp', { ascending: false });
+
+                if (error) throw error;
+
+                profilePostsDiv.innerHTML = '';
+                posts.forEach(post => {
+                    profilePostsDiv.innerHTML += `
+                        <div class="post">
+                            <div onclick="showPostPage('${post.id}')">
+                                <strong>${post.display_name || post.user_email}</strong>
+                                <p>${post.content}</p>
+                                ${post.media_urls ? post.media_urls.map(url => 
+                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                                ).join('') : ''}
+                            </div>
+                            <div class="post-actions">
+                                <button class="like-button" onclick="toggleLike('${post.id}', event)">
+                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                </button>
+                                <button class="comment-button" onclick="showPostPage('${post.id}')">
+                                    <i class="fas fa-comment"></i> ${post.comments_count || 0}
+                                </button>
+                            </div>
+                        </div>`;
+                });
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
             }
         }
 
-        checkTables(); // التأكد من الجداول
-        getPosts(); // تحميل المنشورات عند فتح الصفحة
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.style.display = message ? 'block' : 'none';
+            errorElement.textContent = message;
+        }
+
+        // تهيئة التطبيق عند التحميل
+        window.addEventListener('load', function() {
+            // مراقبة حالة المستخدم
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (user) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('contentSection').style.display = 'block';
+                    document.getElementById('logoutButton').style.display = 'block';
+                    document.getElementById('displayName').value = user.user_metadata?.display_name || '';
+                    loadPosts();
+                } else {
+                    document.getElementById('authSection').style.display = 'block';
+                    document.getElementById('contentSection').style.display = 'none';
+                    document.getElementById('profileSection').style.display = 'none';
+                    document.getElementById('settingsSection').style.display = 'none';
+                    document.getElementById('postPage').style.display = 'none';
+                    document.getElementById('logoutButton').style.display = 'none';
+                }
+            }).catch(error => {
+                console.error('Error checking user session:', error);
+            });
+        });
     </script>
-
 </body>
 </html>
