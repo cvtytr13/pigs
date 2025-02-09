@@ -7,6 +7,7 @@
     <title>منصة التواصل الاجتماعي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* نفس التنسيقات CSS السابقة */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -86,19 +87,19 @@
         .error-message {
             color: red;
             display: none;
-            margin: 10px 0;
         }
         .profile-section, .settings-section {
             display: none;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .post-page {
             padding: 20px;
             max-width: 800px;
             margin: 20px auto;
+        }
+        .post-actions-page {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
         }
         .comments-section {
             margin-top: 30px;
@@ -129,46 +130,10 @@
             background-color: #f0f2f5;
             border-radius: 4px;
         }
-        .media-preview {
-            margin-top: 10px;
-            max-width: 100%;
-            border-radius: 8px;
-        }
-        #loadingMessage {
-            font-size: 14px;
-            color: #1877f2;
-            margin-top: 10px;
-        }
-        .fa-spinner {
-            margin-right: 5px;
-        }
-        input[type="email"],
-        input[type="password"],
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        #authSection {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-        #logoutButton {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
+    <!-- نفس هيكل HTML السابق -->
     <div class="navbar">
         <div class="navbar-icons">
             <i class="fas fa-home" onclick="showHome()"></i>
@@ -228,7 +193,7 @@
     <script>
         // تهيئة Supabase
         const supabaseUrl = 'https://xvftfivwrnjbgyvfeimz.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2ZnRmaXZ3cm5qYmd5dmZlaW16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzODY3MTEsImV4cCI6MjA1Mzk2MjcxMX0.NAgwIlw-98m8y5EW2dlXEcc-rFKI-TYyUpeEj5_CJKs'; // استبدل بالمفتاح الخاص بك
+        const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // استبدل بالمفتاح الخاص بك
         const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         let currentPostId = null;
@@ -256,7 +221,6 @@
                         {
                             content: content,
                             user_id: user.id,
-                            display_name: user.email,
                             post_id: currentPostId,
                             timestamp: new Date().toISOString()
                         }
@@ -281,29 +245,34 @@
                     return;
                 }
 
-                const { data: post, error: postError } = await supabase
-                    .from('posts')
-                    .select('likes')
-                    .eq('id', postId)
+                const { data: existingLike, error: likeError } = await supabase
+                    .from('likes')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('post_id', postId)
                     .single();
 
-                if (postError) throw postError;
+                if (likeError && likeError.code !== 'PGRST116') throw likeError;
 
-                const likes = post.likes || [];
-                const index = likes.indexOf(user.id);
+                if (existingLike) {
+                    const { error: deleteError } = await supabase
+                        .from('likes')
+                        .delete()
+                        .eq('id', existingLike.id);
 
-                if (index === -1) {
-                    likes.push(user.id);
+                    if (deleteError) throw deleteError;
                 } else {
-                    likes.splice(index, 1);
+                    const { error: insertError } = await supabase
+                        .from('likes')
+                        .insert([
+                            {
+                                user_id: user.id,
+                                post_id: postId
+                            }
+                        ]);
+
+                    if (insertError) throw insertError;
                 }
-
-                const { error: updateError } = await supabase
-                    .from('posts')
-                    .update({ likes: likes })
-                    .eq('id', postId);
-
-                if (updateError) throw updateError;
 
                 loadPosts();
             } catch (error) {
@@ -324,7 +293,7 @@
 
                 const { data: posts, error } = await supabase
                     .from('posts')
-                    .select('*')
+                    .select('*, users!inner(*)')
                     .order('timestamp', { ascending: false });
 
                 if (error) throw error;
@@ -334,7 +303,7 @@
                     postsDiv.innerHTML += `
                         <div class="post">
                             <div onclick="showPostPage('${post.id}')">
-                                <strong>${post.display_name || post.user_email}</strong>
+                                <strong>${post.users.email}</strong>
                                 <p>${post.content}</p>
                                 ${post.media_urls ? post.media_urls.map(url => 
                                     url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
@@ -342,7 +311,7 @@
                             </div>
                             <div class="post-actions">
                                 <button class="like-button" onclick="toggleLike('${post.id}', event)">
-                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                    <i class="fas fa-heart"></i> ${post.likes_count || 0}
                                 </button>
                                 <button class="comment-button" onclick="showPostPage('${post.id}')">
                                     <i class="fas fa-comment"></i> ${post.comments_count || 0}
@@ -364,7 +333,7 @@
             try {
                 const { data: post, error } = await supabase
                     .from('posts')
-                    .select('*')
+                    .select('*, users!inner(*)')
                     .eq('id', postId)
                     .single();
 
@@ -373,14 +342,14 @@
                 const singlePostDiv = document.getElementById('singlePost');
                 singlePostDiv.innerHTML = `
                     <div class="post">
-                        <strong>${post.display_name || post.user_email}</strong>
+                        <strong>${post.users.email}</strong>
                         <p>${post.content}</p>
                         ${post.media_urls ? post.media_urls.map(url => 
                             url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
                         ).join('') : ''}
                         <div class="post-actions">
                             <button class="like-button" onclick="toggleLike('${post.id}', event)">
-                                <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                <i class="fas fa-heart"></i> ${post.likes_count || 0}
                             </button>
                         </div>
                     </div>
@@ -400,7 +369,7 @@
             try {
                 const { data: comments, error } = await supabase
                     .from('comments')
-                    .select('*')
+                    .select('*, users!inner(*)')
                     .eq('post_id', postId)
                     .order('timestamp', { ascending: true });
 
@@ -410,7 +379,7 @@
                 comments.forEach(comment => {
                     commentsDiv.innerHTML += `
                         <div class="comment">
-                            <strong>${comment.display_name || comment.user_email}</strong>
+                            <strong>${comment.users.email}</strong>
                             <p>${comment.content}</p>
                             <small>${new Date(comment.timestamp).toLocaleString()}</small>
                         </div>
@@ -524,9 +493,6 @@
                         {
                             content: content,
                             user_id: user.id,
-                            user_email: user.email,
-                            display_name: user.email,
-                            likes: [],
                             media_urls: mediaUrls,
                             timestamp: new Date().toISOString()
                         }
@@ -608,7 +574,7 @@
             try {
                 const { data: posts, error } = await supabase
                     .from('posts')
-                    .select('*')
+                    .select('*, users!inner(*)')
                     .eq('user_id', userId)
                     .order('timestamp', { ascending: false });
 
@@ -619,7 +585,7 @@
                     profilePostsDiv.innerHTML += `
                         <div class="post">
                             <div onclick="showPostPage('${post.id}')">
-                                <strong>${post.display_name || post.user_email}</strong>
+                                <strong>${post.users.email}</strong>
                                 <p>${post.content}</p>
                                 ${post.media_urls ? post.media_urls.map(url => 
                                     url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
@@ -627,7 +593,7 @@
                             </div>
                             <div class="post-actions">
                                 <button class="like-button" onclick="toggleLike('${post.id}', event)">
-                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                    <i class="fas fa-heart"></i> ${post.likes_count || 0}
                                 </button>
                                 <button class="comment-button" onclick="showPostPage('${post.id}')">
                                     <i class="fas fa-comment"></i> ${post.comments_count || 0}
