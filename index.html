@@ -7,7 +7,6 @@
     <title>منصة التواصل الاجتماعي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* تحسينات CSS */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -38,6 +37,21 @@
             margin: 20px auto;
             padding: 0 20px;
         }
+        #authSection {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        #authSection input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
         .post-form {
             background: white;
             padding: 20px;
@@ -61,6 +75,13 @@
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
+            margin: 5px;
+            min-width: 100px;
+            font-size: 16px;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         .post {
             background: white;
@@ -85,65 +106,61 @@
             color: #1877f2;
         }
         .error-message {
-            color: red;
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
             display: none;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1877f2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         .profile-section, .settings-section {
             display: none;
-        }
-        .post-page {
+            background: white;
             padding: 20px;
-            max-width: 800px;
-            margin: 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .post-actions-page {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
+        .media-preview {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
         }
         .comments-section {
-            margin-top: 30px;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-        }
-        .comment-input {
-            width: 100%;
-            padding: 12px;
             margin-top: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
         }
         .comment {
-            margin-top: 10px;
+            background-color: #f8f9fa;
             padding: 10px;
-            background-color: #f9f9f9;
             border-radius: 4px;
+            margin-top: 10px;
         }
         .like-button, .comment-button {
             background: none;
             border: none;
+            padding: 5px 10px;
             cursor: pointer;
             color: #1877f2;
-            padding: 5px 10px;
         }
         .like-button:hover, .comment-button:hover {
             background-color: #f0f2f5;
             border-radius: 4px;
-        }
-        .media-preview {
-            margin-top: 10px;
-        }
-        .media-preview img, .media-preview video {
-            max-width: 100%;
-            border-radius: 8px;
-        }
-        #loadingMessage {
-            font-size: 14px;
-            color: #1877f2;
-            margin-top: 10px;
-        }
-        .fa-spinner {
-            margin-left: 5px;
         }
     </style>
 </head>
@@ -162,8 +179,8 @@
             <h2>تسجيل الدخول</h2>
             <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
             <input type="password" id="passwordInput" placeholder="كلمة المرور">
-            <button onclick="login()" class="button">تسجيل الدخول</button>
-            <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب</button>
+            <button onclick="login()" class="button" id="loginButton">تسجيل الدخول</button>
+            <button onclick="register()" class="button" id="registerButton" style="background-color: #42b72a;">إنشاء حساب</button>
             <div id="authError" class="error-message"></div>
         </div>
 
@@ -205,92 +222,159 @@
 
     <script src="https://cdn.jsdelivr.net/npm/appwrite@10.0.0"></script>
     <script>
+        // تهيئة Appwrite
         const client = new Appwrite.Client();
         client
-            .setEndpoint('https://cloud.appwrite.io/v1') // نقطة النهاية
-            .setProject('67a7b2e0003038b4f3fd'); // استبدل بـ Project ID الخاص بك
+            .setEndpoint('https://cloud.appwrite.io/v1')
+            .setProject('67a7b2e0003038b4f3fd');
 
         const account = new Appwrite.Account(client);
         const database = new Appwrite.Databases(client);
         const storage = new Appwrite.Storage(client);
 
-        const DATABASE_ID = '67a7b54f0006d84a7324'; // استبدل بـ Database ID الخاص بك
-        const POSTS_COLLECTION_ID = '67a7b659002e94add65a'; // استبدل بـ Collection ID للمنشورات
-        const COMMENTS_COLLECTION_ID = '67a7b61a0033036f6444'; // استبدل بـ Collection ID للتعليقات
-        const BUCKET_ID = '67a7b56f00310c8c4bdd'; // استبدل بـ Bucket ID للتخزين
+        const DATABASE_ID = '67a7b54f0006d84a7324';
+        const POSTS_COLLECTION_ID = '67a7b659002e94add65a';
+        const COMMENTS_COLLECTION_ID = '67a7b61a0033036f6444';
+        const BUCKET_ID = '67a7b56f00310c8c4bdd';
 
+        let isLoading = false;
         let currentPostId = null;
 
-        // تعريف الدوال العامة
-        window.submitComment = async function() {
-            const commentInput = document.getElementById('postCommentInput');
-            const content = commentInput.value.trim();
+        // عرض/إخفاء التحميل
+        function showLoading(show) {
+            isLoading = show;
+            const buttons = document.querySelectorAll('.button');
+            buttons.forEach(button => {
+                button.disabled = show;
+                if (show) {
+                    const spinner = document.createElement('span');
+                    spinner.className = 'loading-spinner';
+                    button.prepend(spinner);
+                } else {
+                    const spinner = button.querySelector('.loading-spinner');
+                    if (spinner) spinner.remove();
+                }
+            });
+        }
 
-            if (!content || !currentPostId) {
-                showError('postError', 'يرجى إدخال تعليق');
+        // التسجيل
+        window.register = async function() {
+            if (isLoading) return;
+            
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
                 return;
             }
 
+            if (password.length < 8) {
+                showError('authError', 'يجب أن تكون كلمة المرور 8 أحرف على الأقل');
+                return;
+            }
+
+            showLoading(true);
             try {
-                const user = await account.get();
-                if (!user) {
-                    showError('postError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                await database.createDocument(DATABASE_ID, COMMENTS_COLLECTION_ID, 'unique()', {
-                    content: content,
-                    userId: user.$id,
-                    displayName: user.name || user.email,
-                    postId: currentPostId,
-                    timestamp: new Date().toISOString()
-                });
-
-                commentInput.value = '';
-                loadComments(currentPostId);
+                // إنشاء حساب جديد
+                const user = await account.create('unique()', email, password);
+                
+                // تسجيل الدخول مباشرة بعد إنشاء الحساب
+                await account.createEmailSession(email, password);
+                
+                showError('authError', '');
+                alert('تم إنشاء الحساب بنجاح');
+                window.location.reload();
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء إضافة التعليق: ' + error.message);
+                console.error('Registration error:', error);
+                let errorMessage = 'حدث خطأ أثناء التسجيل';
+                if (error.message.includes('unique')) {
+                    errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
+                }
+                showError('authError', errorMessage);
+            } finally {
+                showLoading(false);
             }
         };
 
-        window.toggleLike = async function(postId, event) {
-            event.stopPropagation();
+        // تسجيل الدخول
+        window.login = async function() {
+            if (isLoading) return;
+            
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
 
+            if (!email || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                await account.createEmailSession(email, password);
+                showError('authError', '');
+                window.location.reload();
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('authError', 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // تسجيل الخروج
+        window.logout = async function() {
+            if (isLoading) return;
+            
+            showLoading(true);
+            try {
+                await account.deleteSession('current');
+                window.location.reload();
+            } catch (error) {
+                console.error('Logout error:', error);
+                showError('authError', 'حدث خطأ أثناء تسجيل الخروج');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // عرض رسائل الخطأ
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            if (errorElement) {
+                errorElement.style.display = message ? 'block' : 'none';
+                errorElement.textContent = message;
+            }
+        }
+
+        // التحقق من حالة تسجيل الدخول عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const user = await account.get();
-                if (!user) {
-                    showError('postError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                const post = await database.getDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
-                const likes = post.likes || [];
-                const index = likes.indexOf(user.$id);
-
-                if (index === -1) {
-                    likes.push(user.$id);
+                if (user) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('contentSection').style.display = 'block';
+                    document.getElementById('logoutButton').style.display = 'block';
+                    loadPosts();
                 } else {
-                    likes.splice(index, 1);
+                    document.getElementById('authSection').style.display = 'block';
+                    document.getElementById('contentSection').style.display = 'none';
+                    document.getElementById('logoutButton').style.display = 'none';
                 }
-
-                await database.updateDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: likes });
-                loadPosts();
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء الإعجاب: ' + error.message);
+                console.error('Session check error:', error);
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('contentSection').style.display = 'none';
+                document.getElementById('logoutButton').style.display = 'none';
             }
-        };
+        });
 
+        // تحميل المنشورات
         async function loadPosts() {
             const postsDiv = document.getElementById('posts');
             postsDiv.innerHTML = "جاري التحميل...";
 
             try {
-                const user = await account.get();
-                if (!user) {
-                    showError('authError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
                 const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID);
                 postsDiv.innerHTML = '';
                 response.documents.forEach(post => {
@@ -315,11 +399,65 @@
                     `;
                 });
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
+                console.error('Load posts error:', error);
+                postsDiv.innerHTML = 'حدث خطأ أثناء تحميل المنشورات';
             }
         }
 
-        async function showPostPage(postId) {
+        // إنشاء منشور جديد
+        window.createPost = async function() {
+            if (isLoading) return;
+
+            const content = document.getElementById('postContent').value.trim();
+            const mediaFiles = document.getElementById('mediaInput').files;
+
+            if (!content && mediaFiles.length === 0) {
+                showError('postError', 'لا يمكن نشر منشور فارغ');
+                return;
+            }
+
+            showLoading(true);
+            document.getElementById('loadingMessage').style.display = 'block';
+
+            try {
+                const user = await account.get();
+                const mediaUrls = [];
+
+                // رفع الوسائط إن وجدت
+                for (let i = 0; i < mediaFiles.length; i++) {
+                    const file = mediaFiles[i];
+                    const response = await storage.createFile(BUCKET_ID, 'unique()', file);
+                    const url = await storage.getFileView(BUCKET_ID, response.$id);
+                    mediaUrls.push(url.href);
+                }
+
+                // إنشاء المنشور
+                await database.createDocument(DATABASE_ID, POSTS_COLLECTION_ID, 'unique()', {
+                    content: content,
+                    userId: user.$id,
+                    userEmail: user.email,
+                    displayName: user.name || user.email,
+                    likes: [],
+                    mediaUrls: mediaUrls,
+                    timestamp: new Date().toISOString()
+                });
+
+                // تنظيف النموذج
+                document.getElementById('postContent').value = '';
+                document.getElementById('mediaInput').value = '';
+                showError('postError', '');
+                loadPosts();
+            } catch (error) {
+                console.error('Create post error:', error);
+                showError('postError', 'حدث خطأ أثناء نشر المنشور');
+            } finally {
+                showLoading(false);
+                document.getElementById('loadingMessage').style.display = 'none';
+            }
+        };
+
+        // إظهار صفحة منشور معين
+        window.showPostPage = async function(postId) {
             currentPostId = postId;
             document.getElementById('contentSection').style.display = 'none';
             document.getElementById('postPage').style.display = 'block';
@@ -345,11 +483,12 @@
 
                 loadComments(postId);
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل المنشور: ' + error.message);
+                console.error('Show post error:', error);
+                document.getElementById('singlePost').innerHTML = 'حدث خطأ أثناء تحميل المنشور';
             }
-        }
-        window.showPostPage = showPostPage;
+        };
 
+        // تحميل التعليقات
         async function loadComments(postId) {
             const commentsDiv = document.getElementById('postComments');
             commentsDiv.innerHTML = "جاري تحميل التعليقات...";
@@ -369,104 +508,74 @@
                     `;
                 });
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل التعليقات: ' + error.message);
+                console.error('Load comments error:', error);
+                commentsDiv.innerHTML = 'حدث خطأ أثناء تحميل التعليقات';
             }
         }
 
-        window.register = async function() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
+        // إضافة تعليق
+        window.submitComment = async function() {
+            if (isLoading) return;
 
-            if (!email || !password) {
-                showError('authError', 'يرجى ملء جميع الحقول');
+            const commentInput = document.getElementById('postCommentInput');
+            const content = commentInput.value.trim();
+
+            if (!content || !currentPostId) {
+                showError('postError', 'يرجى إدخال تعليق');
                 return;
             }
 
-            try {
-                await account.create('unique()', email, password);
-                showError('authError', '');
-                alert('تم إنشاء الحساب بنجاح');
-                window.location.reload();
-            } catch (error) {
-                showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
-            }
-        };
-
-        window.login = async function() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-
-            if (!email || !password) {
-                showError('authError', 'يرجى ملء جميع الحقول');
-                return;
-            }
-
-            try {
-                await account.createEmailSession(email, password);
-                showError('authError', '');
-                alert('تم تسجيل الدخول بنجاح');
-                window.location.reload();
-            } catch (error) {
-                showError('authError', 'بيانات تسجيل الدخول غير صحيحة: ' + error.message);
-            }
-        };
-
-        window.logout = async function() {
-            try {
-                await account.deleteSession('current');
-                window.location.reload();
-            } catch (error) {
-                showError('authError', 'حدث خطأ أثناء تسجيل الخروج: ' + error.message);
-            }
-        };
-
-        window.createPost = async function() {
-            const content = document.getElementById('postContent').value.trim();
-            const mediaFiles = document.getElementById('mediaInput').files;
-
-            if (!content && mediaFiles.length === 0) {
-                showError('postError', 'لا يمكن نشر منشور فارغ');
-                return;
-            }
-
+            showLoading(true);
             try {
                 const user = await account.get();
-                if (!user) {
-                    showError('postError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                document.getElementById('loadingMessage').style.display = 'block';
-
-                const mediaUrls = [];
-                for (let i = 0; i < mediaFiles.length; i++) {
-                    const file = mediaFiles[i];
-                    const response = await storage.createFile(BUCKET_ID, 'unique()', file);
-                    const url = await storage.getFileView(BUCKET_ID, response.$id);
-                    mediaUrls.push(url.href);
-                }
-
-                await database.createDocument(DATABASE_ID, POSTS_COLLECTION_ID, 'unique()', {
+                await database.createDocument(DATABASE_ID, COMMENTS_COLLECTION_ID, 'unique()', {
                     content: content,
                     userId: user.$id,
-                    userEmail: user.email,
                     displayName: user.name || user.email,
-                    likes: [],
-                    mediaUrls: mediaUrls,
+                    postId: currentPostId,
                     timestamp: new Date().toISOString()
                 });
 
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('postContent').value = '';
-                document.getElementById('mediaInput').value = '';
-                showError('postError', '');
-                loadPosts();
+                commentInput.value = '';
+                loadComments(currentPostId);
             } catch (error) {
-                document.getElementById('loadingMessage').style.display = 'none';
-                showError('postError', 'حدث خطأ أثناء النشر: ' + error.message);
+                console.error('Submit comment error:', error);
+                showError('postError', 'حدث خطأ أثناء إضافة التعليق');
+            } finally {
+                showLoading(false);
             }
         };
 
+        // تبديل الإعجاب
+        window.toggleLike = async function(postId, event) {
+            if (isLoading) return;
+            
+            event.stopPropagation();
+            showLoading(true);
+
+            try {
+                const user = await account.get();
+                const post = await database.getDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
+                const likes = post.likes || [];
+                const index = likes.indexOf(user.$id);
+
+                if (index === -1) {
+                    likes.push(user.$id);
+                } else {
+                    likes.splice(index, 1);
+                }
+
+                await database.updateDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: likes });
+                loadPosts();
+            } catch (error) {
+                console.error('Toggle like error:', error);
+                showError('postError', 'حدث خطأ أثناء تسجيل الإعجاب');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // أقسام التنقل
         window.showHome = function() {
             document.getElementById('contentSection').style.display = 'block';
             document.getElementById('profileSection').style.display = 'none';
@@ -475,14 +584,17 @@
             loadPosts();
         };
 
-        window.showProfile = function() {
+        window.showProfile = async function() {
             document.getElementById('contentSection').style.display = 'none';
             document.getElementById('profileSection').style.display = 'block';
             document.getElementById('settingsSection').style.display = 'none';
             document.getElementById('postPage').style.display = 'none';
-            const user = account.get();
-            if (user) {
+            
+            try {
+                const user = await account.get();
                 loadProfilePosts(user.$id);
+            } catch (error) {
+                console.error('Show profile error:', error);
             }
         };
 
@@ -493,33 +605,41 @@
             document.getElementById('postPage').style.display = 'none';
         };
 
+        // تحديث البروفايل
         window.updateProfile = async function() {
+            if (isLoading) return;
+
+            showLoading(true);
             try {
                 const user = await account.get();
-                if (!user) {
-                    showError('authError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                const displayName = document.getElementById('displayName').value;
+                const displayName = document.getElementById('displayName').value.trim();
                 const newPassword = document.getElementById('newPassword').value;
 
                 if (displayName) {
                     await account.updateName(displayName);
                 }
                 if (newPassword) {
+                    if (newPassword.length < 8) {
+                        throw new Error('يجب أن تكون كلمة المرور 8 أحرف على الأقل');
+                    }
                     await account.updatePassword(newPassword);
                 }
 
                 alert('تم تحديث البروفايل بنجاح');
+                window.location.reload();
             } catch (error) {
+                console.error('Update profile error:', error);
                 showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
+            } finally {
+                showLoading(false);
             }
         };
 
+        // تحميل منشورات البروفايل
         async function loadProfilePosts(userId) {
             const profilePostsDiv = document.getElementById('profilePosts');
             profilePostsDiv.innerHTML = "جاري التحميل...";
+
             try {
                 const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID, [
                     Appwrite.Query.equal('userId', userId)
@@ -543,37 +663,26 @@
                                     <i class="fas fa-comment"></i> ${post.commentsCount || 0}
                                 </button>
                             </div>
-                        </div>`;
+                        </div>
+                    `;
                 });
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
+                console.error('Load profile posts error:', error);
+                profilePostsDiv.innerHTML = 'حدث خطأ أثناء تحميل المنشورات';
             }
         }
 
-        function showError(elementId, message) {
-            const errorElement = document.getElementById(elementId);
-            errorElement.style.display = message ? 'block' : 'none';
-            errorElement.textContent = message;
-        }
-
-        // مراقبة حالة المستخدم عند تحميل الصفحة
-        account.get().then(user => {
-            if (user) {
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
-                document.getElementById('logoutButton').style.display = 'block';
-                document.getElementById('displayName').value = user.name || '';
-                loadPosts();
-            } else {
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('contentSection').style.display = 'none';
-                document.getElementById('profileSection').style.display = 'none';
-                document.getElementById('settingsSection').style.display = 'none';
-                document.getElementById('postPage').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
+        // إضافة مستمعي الأحداث للإدخال
+        document.getElementById('emailInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
             }
-        }).catch(error => {
-            console.error('Error checking user session:', error);
+        });
+
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
         });
     </script>
 </body>
