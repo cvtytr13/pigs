@@ -467,44 +467,104 @@
             }
         }
 
-        window.register = async function() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
+        // تعديل دالة التسجيل
+window.register = async function() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
 
-            if (!email || !password) {
-                showError('authError', 'يرجى ملء جميع الحقول');
-                return;
-            }
+    if (!email || !password) {
+        showError('authError', 'يرجى ملء جميع الحقول');
+        return;
+    }
 
-            try {
-                await account.create('unique()', email, password);
-                await account.createEmailSession(email, password);
-                showError('authError', '');
-                alert('تم إنشاء الحساب بنجاح');
-                window.location.reload();
-            } catch (error) {
-                showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
-            }
-        };
+    try {
+        // إظهار رسالة تحميل
+        showError('authError', 'جاري إنشاء الحساب...');
+        
+        // إنشاء الحساب
+        const user = await account.create('unique()', email, password);
+        
+        // تسجيل الدخول مباشرة بعد إنشاء الحساب
+        await account.createEmailSession(email, password);
+        
+        // إخفاء رسالة الخطأ
+        showError('authError', '');
+        
+        // تحديث واجهة المستخدم
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('contentSection').style.display = 'block';
+        document.getElementById('logoutButton').style.display = 'block';
+        
+        // تحميل المنشورات
+        loadPosts();
+        
+        alert('تم إنشاء الحساب بنجاح');
+    } catch (error) {
+        // التعامل مع الأخطاء المختلفة
+        if (error.code === 409) {
+            showError('authError', 'البريد الإلكتروني مستخدم بالفعل');
+        } else {
+            showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
+        }
+    }
+};
 
-        window.login = async function() {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
+// تعديل دالة تسجيل الدخول
+window.login = async function() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
 
-            if (!email || !password) {
-                showError('authError', 'يرجى ملء جميع الحقول');
-                return;
-            }
+    if (!email || !password) {
+        showError('authError', 'يرجى ملء جميع الحقول');
+        return;
+    }
 
-            try {
-                await account.createEmailSession(email, password);
-                showError('authError', '');
-                alert('تم تسجيل الدخول بنجاح');
-                window.location.reload();
-            } catch (error) {
-                showError('authError', 'بيانات تسجيل الدخول غير صحيحة: ' + error.message);
-            }
-        };
+    try {
+        // إظهار رسالة تحميل
+        showError('authError', 'جاري تسجيل الدخول...');
+        
+        // محاولة تسجيل الدخول
+        await account.createEmailSession(email, password);
+        
+        // إخفاء رسالة الخطأ
+        showError('authError', '');
+        
+        // تحديث واجهة المستخدم
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('contentSection').style.display = 'block';
+        document.getElementById('logoutButton').style.display = 'block';
+        
+        // تحميل المنشورات
+        loadPosts();
+        
+        // الحصول على معلومات المستخدم وتحديث الواجهة
+        const user = await account.get();
+        if (user.name) {
+            document.getElementById('displayName').value = user.name;
+        }
+        
+    } catch (error) {
+        // التعامل مع الأخطاء المختلفة
+        if (error.code === 401) {
+            showError('authError', 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+        } else {
+            showError('authError', 'حدث خطأ أثناء تسجيل الدخول: ' + error.message);
+        }
+    }
+};
+
+// تحسين دالة إظهار الخطأ
+function showError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    if (errorElement) {
+        errorElement.style.display = message ? 'block' : 'none';
+        errorElement.textContent = message;
+        // تمرير لأعلى الصفحة إذا كان هناك خطأ
+        if (message && !message.includes('جاري')) {
+            errorElement.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+}
 
         window.logout = async function() {
             try {
