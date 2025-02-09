@@ -6,10 +6,11 @@
     <title>تطبيق التواصل باستخدام Supabase</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 500px; margin: auto; }
-        input, button, textarea { width: 100%; padding: 10px; margin: 5px 0; }
-        .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        .container { max-width: 500px; margin: auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        input, button, textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; }
+        .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #fff; border-radius: 5px; text-align: left; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -20,11 +21,12 @@
         <input type="password" id="password" placeholder="كلمة المرور">
         <button onclick="register()">تسجيل</button>
         <button onclick="login()">دخول</button>
-        
+        <button onclick="logout()" class="hidden" id="logoutBtn">تسجيل الخروج</button>
+
         <h2>إضافة منشور</h2>
         <textarea id="postContent" placeholder="اكتب منشورك هنا"></textarea>
         <button onclick="addPost()">نشر</button>
-        
+
         <h2>المنشورات</h2>
         <div id="posts"></div>
     </div>
@@ -35,21 +37,16 @@
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5c...";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // **إنشاء الجداول تلقائيًا**
-        async function setupDatabase() {
-            await supabase.rpc("create_tables_if_not_exist"); // دالة مخزنة لإنشاء الجداول
-        }
-
         // **تسجيل مستخدم جديد**
         async function register() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const { data, error } = await supabase.auth.signUp({ email, password });
+            const { error } = await supabase.auth.signUp({ email, password });
 
             if (error) {
-                alert("خطأ في التسجيل: " + error.message);
+                alert("❌ خطأ في التسجيل: " + error.message);
             } else {
-                alert("تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
+                alert("✅ تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
             }
         }
 
@@ -57,51 +54,62 @@
         async function login() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
 
             if (error) {
-                alert("خطأ في تسجيل الدخول: " + error.message);
+                alert("❌ خطأ في تسجيل الدخول: " + error.message);
             } else {
-                alert("تم تسجيل الدخول بنجاح!");
+                alert("✅ تم تسجيل الدخول بنجاح!");
+                document.getElementById("logoutBtn").classList.remove("hidden");
                 getPosts();
             }
+        }
+
+        // **تسجيل الخروج**
+        async function logout() {
+            await supabase.auth.signOut();
+            alert("🚪 تم تسجيل الخروج!");
+            location.reload(); // تحديث الصفحة بعد تسجيل الخروج
         }
 
         // **إضافة منشور**
         async function addPost() {
             const content = document.getElementById('postContent').value;
-            const { data: user, error: userError } = await supabase.auth.getUser();
+            const { data: userData, error: userError } = await supabase.auth.getUser();
 
-            if (userError || !user) {
-                alert("يجب تسجيل الدخول أولاً!");
+            if (userError || !userData.user) {
+                alert("⚠️ يجب تسجيل الدخول أولاً!");
                 return;
             }
 
-            const { data, error } = await supabase.from("posts").insert([{ content, user_id: user.id }]);
+            const userId = userData.user.id;
+            const { error } = await supabase.from("posts").insert([{ content, user_id: userId }]);
 
             if (error) {
-                alert("خطأ في نشر المنشور: " + error.message);
+                alert("❌ خطأ في نشر المنشور: " + error.message);
             } else {
-                alert("تم نشر المنشور!");
+                alert("✅ تم نشر المنشور!");
+                document.getElementById('postContent').value = ""; // مسح المحتوى بعد النشر
                 getPosts();
             }
         }
 
         // **جلب المنشورات**
         async function getPosts() {
-            const { data, error } = await supabase.from("posts").select("*");
+            const { data, error } = await supabase.from("posts").select("*").order("created_at", { ascending: false });
 
             if (error) {
-                alert("خطأ في تحميل المنشورات: " + error.message);
+                alert("❌ خطأ في تحميل المنشورات: " + error.message);
             } else {
                 document.getElementById('posts').innerHTML = data.map(post => `
                     <div class="post">
                         <p>${post.content}</p>
-                        <button onclick="likePost(${post.id})">إعجاب (${post.likes || 0})</button>
-                        <button onclick="addComment(${post.id})">تعليق</button>
+                        <button onclick="likePost(${post.id})">👍 إعجاب (${post.likes || 0})</button>
+                        <button onclick="addComment(${post.id})">💬 تعليق</button>
                         <div id="comments-${post.id}"></div>
                     </div>
                 `).join('');
+                data.forEach(post => loadComments(post.id)); // تحميل التعليقات لكل منشور
             }
         }
 
@@ -110,7 +118,7 @@
             const { data: post, error } = await supabase.from("posts").select("likes").eq("id", postId).single();
 
             if (error) {
-                alert("خطأ في جلب الإعجابات: " + error.message);
+                alert("❌ خطأ في جلب الإعجابات: " + error.message);
                 return;
             }
 
@@ -121,11 +129,11 @@
 
         // **إضافة تعليق**
         async function addComment(postId) {
-            const comment = prompt("اكتب تعليقك:");
+            const comment = prompt("💬 اكتب تعليقك:");
             if (!comment) return;
 
             await supabase.from("comments").insert([{ post_id: postId, content: comment }]);
-            alert("تمت إضافة تعليقك!");
+            alert("✅ تمت إضافة تعليقك!");
             loadComments(postId);
         }
 
@@ -134,16 +142,31 @@
             const { data, error } = await supabase.from("comments").select("*").eq("post_id", postId);
 
             if (error) {
-                console.log("خطأ في تحميل التعليقات:", error.message);
+                console.log("❌ خطأ في تحميل التعليقات:", error.message);
                 return;
             }
 
             document.getElementById(`comments-${postId}`).innerHTML = data.map(comment => `
-                <p>${comment.content}</p>
+                <p>💬 ${comment.content}</p>
             `).join('');
         }
 
-        setupDatabase(); // إنشاء الجداول عند تحميل الصفحة
+        // **التأكد من الجداول عند التحميل**
+        async function checkTables() {
+            const { data, error } = await supabase.from("pg_tables").select("tablename");
+
+            if (error || !data) {
+                alert("⚠️ يرجى التأكد من إنشاء الجداول في Supabase.");
+                return;
+            }
+
+            const tableNames = data.map(t => t.tablename);
+            if (!tableNames.includes("users") || !tableNames.includes("posts") || !tableNames.includes("comments")) {
+                alert("⚠️ يرجى التأكد من إنشاء الجداول في Supabase.");
+            }
+        }
+
+        checkTables(); // التأكد من الجداول
         getPosts(); // تحميل المنشورات عند فتح الصفحة
     </script>
 
