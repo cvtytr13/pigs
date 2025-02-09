@@ -162,6 +162,52 @@
             background-color: #f0f2f5;
             border-radius: 4px;
         }
+        .admin-controls {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
@@ -177,11 +223,19 @@
     <div class="container">
         <div id="authSection">
             <h2>تسجيل الدخول</h2>
-            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
+            <input type="text" id="usernameInput" placeholder="اسم المستخدم">
             <input type="password" id="passwordInput" placeholder="كلمة المرور">
-            <button onclick="login()" class="button" id="loginButton">تسجيل الدخول</button>
-            <button onclick="register()" class="button" id="registerButton" style="background-color: #42b72a;">إنشاء حساب</button>
+            <button onclick="login()" class="button" id="loginButton">دخول</button>
             <div id="authError" class="error-message"></div>
+        </div>
+
+        <div id="adminControls" class="admin-controls" style="display: none;">
+            <h3>لوحة تحكم المدير</h3>
+            <label class="switch">
+                <input type="checkbox" id="visitorAccessToggle" onchange="toggleVisitorAccess()">
+                <span class="slider"></span>
+            </label>
+            <span>السماح بدخول الزوار</span>
         </div>
 
         <div id="contentSection" style="display: none;">
@@ -237,6 +291,11 @@
         const COMMENTS_COLLECTION_ID = '67a7b61a0033036f6444';
         const BUCKET_ID = '67a7b56f00310c8c4bdd';
 
+        // ثوابت النظام
+        const ADMIN_USERNAME = 'Allvan6597';
+        const ADMIN_PASSWORD = 'admin123'; // يجب تغييره لكلمة مرور قوية في الإنتاج
+        let isAdmin = false;
+        let visitorAccessEnabled = true;
         let isLoading = false;
         let currentPostId = null;
 
@@ -257,87 +316,6 @@
             });
         }
 
-        // التسجيل
-        window.register = async function() {
-            if (isLoading) return;
-            
-            const email = document.getElementById('emailInput').value.trim();
-            const password = document.getElementById('passwordInput').value;
-
-            if (!email || !password) {
-                showError('authError', 'يرجى ملء جميع الحقول');
-                return;
-            }
-
-            if (password.length < 8) {
-                showError('authError', 'يجب أن تكون كلمة المرور 8 أحرف على الأقل');
-                return;
-            }
-
-            showLoading(true);
-            try {
-                // إنشاء حساب جديد
-                const user = await account.create('unique()', email, password);
-                
-                // تسجيل الدخول مباشرة بعد إنشاء الحساب
-                await account.createEmailSession(email, password);
-                
-                showError('authError', '');
-                alert('تم إنشاء الحساب بنجاح');
-                window.location.reload();
-            } catch (error) {
-                console.error('Registration error:', error);
-                let errorMessage = 'حدث خطأ أثناء التسجيل';
-                if (error.message.includes('unique')) {
-                    errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
-                }
-                showError('authError', errorMessage);
-            } finally {
-                showLoading(false);
-            }
-        };
-
-        // تسجيل الدخول
-        window.login = async function() {
-            if (isLoading) return;
-            
-            const email = document.getElementById('emailInput').value.trim();
-            const password = document.getElementById('passwordInput').value;
-
-            if (!email || !password) {
-                showError('authError', 'يرجى ملء جميع الحقول');
-                return;
-            }
-
-            showLoading(true);
-            try {
-                await account.createEmailSession(email, password);
-                showError('authError', '');
-                window.location.reload();
-            } catch (error) {
-                console.error('Login error:', error);
-                showError('authError', 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
-            } finally {
-                showLoading(false);
-            }
-        };
-
-        // تسجيل الخروج
-        window.logout = async function() {
-            if (isLoading) return;
-            
-            showLoading(true);
-            try {
-                await account.deleteSession('current');
-                window.location.reload();
-            } catch (error) {
-                console.error('Logout error:', error);
-                showError('authError', 'حدث خطأ أثناء تسجيل الخروج');
-            } finally {
-                showLoading(false);
-            }
-        };
-
         // عرض رسائل الخطأ
         function showError(elementId, message) {
             const errorElement = document.getElementById(elementId);
@@ -347,27 +325,51 @@
             }
         }
 
-        // التحقق من حالة تسجيل الدخول عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const user = await account.get();
-                if (user) {
-                    document.getElementById('authSection').style.display = 'none';
-                    document.getElementById('contentSection').style.display = 'block';
-                    document.getElementById('logoutButton').style.display = 'block';
-                    loadPosts();
-                } else {
-                    document.getElementById('authSection').style.display = 'block';
-                    document.getElementById('contentSection').style.display = 'none';
-                    document.getElementById('logoutButton').style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Session check error:', error);
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('contentSection').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
+        // تسجيل الدخول
+        window.login = async function() {
+            const username = document.getElementById('usernameInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            if (!username || !password) {
+                showError('authError', 'يرجى ملء جميع الحقول');
+                return;
             }
-        });
+
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                // تسجيل دخول المدير
+                isAdmin = true;
+                document.getElementById('adminControls').style.display = 'block';
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('contentSection').style.display = 'block';
+                document.getElementById('logoutButton').style.display = 'block';
+                loadPosts();
+            } else if (visitorAccessEnabled) {
+                // تسجيل دخول الزائر
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('contentSection').style.display = 'block';
+                document.getElementById('logoutButton').style.display = 'block';
+                loadPosts();
+            } else {
+                showError('authError', 'الدخول غير مسموح حالياً');
+            }
+        };
+
+        // تسجيل الخروج
+        window.logout = function() {
+            isAdmin = false;
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('adminControls').style.display = 'none';
+            document.getElementById('logoutButton').style.display = 'none';
+            document.getElementById('usernameInput').value = '';
+            document.getElementById('passwordInput').value = '';
+        };
+
+        // التحكم في دخول الزوار
+        window.toggleVisitorAccess = function() {
+            if (!isAdmin) return;
+            visitorAccessEnabled = document.getElementById('visitorAccessToggle').checked;
+        };
 
         // تحميل المنشورات
         async function loadPosts() {
@@ -420,7 +422,6 @@
             document.getElementById('loadingMessage').style.display = 'block';
 
             try {
-                const user = await account.get();
                 const mediaUrls = [];
 
                 // رفع الوسائط إن وجدت
@@ -432,11 +433,10 @@
                 }
 
                 // إنشاء المنشور
+                const username = isAdmin ? ADMIN_USERNAME : document.getElementById('usernameInput').value;
                 await database.createDocument(DATABASE_ID, POSTS_COLLECTION_ID, 'unique()', {
                     content: content,
-                    userId: user.$id,
-                    userEmail: user.email,
-                    displayName: user.name || user.email,
+                    displayName: username,
                     likes: [],
                     mediaUrls: mediaUrls,
                     timestamp: new Date().toISOString()
@@ -468,7 +468,7 @@
 
                 singlePostDiv.innerHTML = `
                     <div class="post">
-                        <strong>${post.displayName || post.userEmail}</strong>
+                        <strong>${post.displayName}</strong>
                         <p>${post.content}</p>
                         ${post.mediaUrls ? post.mediaUrls.map(url => 
                             url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
@@ -501,7 +501,7 @@
                 response.documents.forEach(comment => {
                     commentsDiv.innerHTML += `
                         <div class="comment">
-                            <strong>${comment.displayName || comment.userEmail}</strong>
+                            <strong>${comment.displayName}</strong>
                             <p>${comment.content}</p>
                             <small>${new Date(comment.timestamp).toLocaleString()}</small>
                         </div>
@@ -527,11 +527,10 @@
 
             showLoading(true);
             try {
-                const user = await account.get();
+                const username = isAdmin ? ADMIN_USERNAME : document.getElementById('usernameInput').value;
                 await database.createDocument(DATABASE_ID, COMMENTS_COLLECTION_ID, 'unique()', {
                     content: content,
-                    userId: user.$id,
-                    displayName: user.name || user.email,
+                    displayName: username,
                     postId: currentPostId,
                     timestamp: new Date().toISOString()
                 });
@@ -554,13 +553,13 @@
             showLoading(true);
 
             try {
-                const user = await account.get();
                 const post = await database.getDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
                 const likes = post.likes || [];
-                const index = likes.indexOf(user.$id);
+                const username = isAdmin ? ADMIN_USERNAME : document.getElementById('usernameInput').value;
+                const index = likes.indexOf(username);
 
                 if (index === -1) {
-                    likes.push(user.$id);
+                    likes.push(username);
                 } else {
                     likes.splice(index, 1);
                 }
@@ -584,18 +583,12 @@
             loadPosts();
         };
 
-        window.showProfile = async function() {
+        window.showProfile = function() {
             document.getElementById('contentSection').style.display = 'none';
             document.getElementById('profileSection').style.display = 'block';
             document.getElementById('settingsSection').style.display = 'none';
             document.getElementById('postPage').style.display = 'none';
-            
-            try {
-                const user = await account.get();
-                loadProfilePosts(user.$id);
-            } catch (error) {
-                console.error('Show profile error:', error);
-            }
+            loadProfilePosts();
         };
 
         window.showSettings = function() {
@@ -605,51 +598,23 @@
             document.getElementById('postPage').style.display = 'none';
         };
 
-        // تحديث البروفايل
-        window.updateProfile = async function() {
-            if (isLoading) return;
-
-            showLoading(true);
-            try {
-                const user = await account.get();
-                const displayName = document.getElementById('displayName').value.trim();
-                const newPassword = document.getElementById('newPassword').value;
-
-                if (displayName) {
-                    await account.updateName(displayName);
-                }
-                if (newPassword) {
-                    if (newPassword.length < 8) {
-                        throw new Error('يجب أن تكون كلمة المرور 8 أحرف على الأقل');
-                    }
-                    await account.updatePassword(newPassword);
-                }
-
-                alert('تم تحديث البروفايل بنجاح');
-                window.location.reload();
-            } catch (error) {
-                console.error('Update profile error:', error);
-                showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        };
-
         // تحميل منشورات البروفايل
-        async function loadProfilePosts(userId) {
+        async function loadProfilePosts() {
             const profilePostsDiv = document.getElementById('profilePosts');
             profilePostsDiv.innerHTML = "جاري التحميل...";
 
             try {
+                const username = isAdmin ? ADMIN_USERNAME : document.getElementById('usernameInput').value;
                 const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID, [
-                    Appwrite.Query.equal('userId', userId)
+                    Appwrite.Query.equal('displayName', username)
                 ]);
+                
                 profilePostsDiv.innerHTML = '';
                 response.documents.forEach(post => {
                     profilePostsDiv.innerHTML += `
                         <div class="post">
                             <div onclick="showPostPage('${post.$id}')">
-                                <strong>${post.displayName || post.userEmail}</strong>
+                                <strong>${post.displayName}</strong>
                                 <p>${post.content}</p>
                                 ${post.mediaUrls ? post.mediaUrls.map(url => 
                                     url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
@@ -672,8 +637,45 @@
             }
         }
 
+        // تحديث البروفايل
+        window.updateProfile = async function() {
+            if (isLoading || !isAdmin) return;
+
+            const displayName = document.getElementById('displayName').value.trim();
+            const newPassword = document.getElementById('newPassword').value;
+
+            if (!displayName && !newPassword) {
+                showError('authError', 'يرجى إدخال المعلومات التي تريد تحديثها');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                if (displayName) {
+                    // تحديث الاسم المعروض في المنشورات السابقة
+                    const posts = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID, [
+                        Appwrite.Query.equal('displayName', ADMIN_USERNAME)
+                    ]);
+                    
+                    for (const post of posts.documents) {
+                        await database.updateDocument(DATABASE_ID, POSTS_COLLECTION_ID, post.$id, {
+                            displayName: displayName
+                        });
+                    }
+                }
+
+                alert('تم تحديث البروفايل بنجاح');
+                loadPosts();
+            } catch (error) {
+                console.error('Update profile error:', error);
+                showError('authError', 'حدث خطأ أثناء تحديث البروفايل');
+            } finally {
+                showLoading(false);
+            }
+        };
+
         // إضافة مستمعي الأحداث للإدخال
-        document.getElementById('emailInput').addEventListener('keypress', function(e) {
+        document.getElementById('usernameInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 login();
             }
@@ -683,6 +685,13 @@
             if (e.key === 'Enter') {
                 login();
             }
+        });
+
+        // التحقق من حالة تسجيل الدخول عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('logoutButton').style.display = 'none';
         });
     </script>
 </body>
