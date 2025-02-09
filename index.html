@@ -30,110 +30,121 @@
     </div>
 
     <script>
-        // مفاتيح Supabase
+        // **تهيئة Supabase**
         const SUPABASE_URL = "https://xvftfiwrnjbgyvfe.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5c...";
-        
-        // تهيئة الاتصال مع Supabase
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // إنشاء الجداول تلقائيًا إذا لم تكن موجودة
+        // **إنشاء الجداول تلقائيًا**
         async function setupDatabase() {
-            try {
-                const { data, error } = await supabase
-                    .rpc('create_posts_table');
-
-                if (error) {
-                    console.error("خطأ أثناء إنشاء الجدول:", error);
-                } else {
-                    console.log("تم التحقق من الجدول بنجاح!");
-                }
-            } catch (error) {
-                console.error("خطأ في إنشاء القاعدة:", error);
-            }
+            await supabase.rpc("create_tables_if_not_exist"); // دالة مخزنة لإنشاء الجداول
         }
 
-        // تسجيل مستخدم جديد
+        // **تسجيل مستخدم جديد**
         async function register() {
-            try {
-                const { user, error } = await supabase.auth.signUp({
-                    email: document.getElementById('email').value,
-                    password: document.getElementById('password').value
-                });
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabase.auth.signUp({ email, password });
 
-                if (error) throw error;
-                alert("تم التسجيل بنجاح!");
-            } catch (error) {
-                alert("خطأ: " + error.message);
+            if (error) {
+                alert("خطأ في التسجيل: " + error.message);
+            } else {
+                alert("تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
             }
         }
 
-        // تسجيل الدخول
+        // **تسجيل الدخول**
         async function login() {
-            try {
-                const { user, error } = await supabase.auth.signInWithPassword({
-                    email: document.getElementById('email').value,
-                    password: document.getElementById('password').value
-                });
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-                if (error) throw error;
-                alert("تم تسجيل الدخول!");
+            if (error) {
+                alert("خطأ في تسجيل الدخول: " + error.message);
+            } else {
+                alert("تم تسجيل الدخول بنجاح!");
                 getPosts();
-            } catch (error) {
-                alert("خطأ: " + error.message);
             }
         }
 
-        // إضافة منشور جديد
+        // **إضافة منشور**
         async function addPost() {
-            try {
-                const { data, error } = await supabase
-                    .from('posts')
-                    .insert([{ content: document.getElementById('postContent').value }]);
+            const content = document.getElementById('postContent').value;
+            const { data: user, error: userError } = await supabase.auth.getUser();
 
-                if (error) throw error;
+            if (userError || !user) {
+                alert("يجب تسجيل الدخول أولاً!");
+                return;
+            }
+
+            const { data, error } = await supabase.from("posts").insert([{ content, user_id: user.id }]);
+
+            if (error) {
+                alert("خطأ في نشر المنشور: " + error.message);
+            } else {
                 alert("تم نشر المنشور!");
                 getPosts();
-            } catch (error) {
-                alert("خطأ: " + error.message);
             }
         }
 
-        // جلب جميع المنشورات وعرضها
+        // **جلب المنشورات**
         async function getPosts() {
-            try {
-                const { data, error } = await supabase
-                    .from('posts')
-                    .select('*');
+            const { data, error } = await supabase.from("posts").select("*");
 
-                if (error) throw error;
-
+            if (error) {
+                alert("خطأ في تحميل المنشورات: " + error.message);
+            } else {
                 document.getElementById('posts').innerHTML = data.map(post => `
                     <div class="post">
                         <p>${post.content}</p>
-                        <button onclick="likePost(${post.id})">إعجاب</button>
+                        <button onclick="likePost(${post.id})">إعجاب (${post.likes || 0})</button>
                         <button onclick="addComment(${post.id})">تعليق</button>
+                        <div id="comments-${post.id}"></div>
                     </div>
                 `).join('');
-            } catch (error) {
-                alert("خطأ: " + error.message);
             }
         }
 
-        // تسجيل إعجاب بالمنشور
+        // **إضافة إعجاب للمنشور**
         async function likePost(postId) {
-            alert("تم تسجيل الإعجاب بالمنشور " + postId);
+            const { data: post, error } = await supabase.from("posts").select("likes").eq("id", postId).single();
+
+            if (error) {
+                alert("خطأ في جلب الإعجابات: " + error.message);
+                return;
+            }
+
+            const newLikes = (post.likes || 0) + 1;
+            await supabase.from("posts").update({ likes: newLikes }).eq("id", postId);
+            getPosts();
         }
 
-        // إضافة تعليق على المنشور
+        // **إضافة تعليق**
         async function addComment(postId) {
             const comment = prompt("اكتب تعليقك:");
-            if (comment) alert("تمت إضافة تعليقك على المنشور " + postId);
+            if (!comment) return;
+
+            await supabase.from("comments").insert([{ post_id: postId, content: comment }]);
+            alert("تمت إضافة تعليقك!");
+            loadComments(postId);
         }
 
-        // التأكد من إنشاء الجدول ثم جلب المنشورات
-        setupDatabase();
-        getPosts();
+        // **جلب التعليقات لمنشور معين**
+        async function loadComments(postId) {
+            const { data, error } = await supabase.from("comments").select("*").eq("post_id", postId);
+
+            if (error) {
+                console.log("خطأ في تحميل التعليقات:", error.message);
+                return;
+            }
+
+            document.getElementById(`comments-${postId}`).innerHTML = data.map(comment => `
+                <p>${comment.content}</p>
+            `).join('');
+        }
+
+        setupDatabase(); // إنشاء الجداول عند تحميل الصفحة
+        getPosts(); // تحميل المنشورات عند فتح الصفحة
     </script>
 
 </body>
