@@ -7,7 +7,6 @@
     <title>منصة التواصل الاجتماعي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* تحسينات CSS */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -87,19 +86,19 @@
         .error-message {
             color: red;
             display: none;
+            margin: 10px 0;
         }
         .profile-section, .settings-section {
             display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .post-page {
             padding: 20px;
             max-width: 800px;
             margin: 20px auto;
-        }
-        .post-actions-page {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
         }
         .comments-section {
             margin-top: 30px;
@@ -132,8 +131,6 @@
         }
         .media-preview {
             margin-top: 10px;
-        }
-        .media-preview img, .media-preview video {
             max-width: 100%;
             border-radius: 8px;
         }
@@ -143,7 +140,31 @@
             margin-top: 10px;
         }
         .fa-spinner {
-            margin-left: 5px;
+            margin-right: 5px;
+        }
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #authSection {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        #logoutButton {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -205,15 +226,18 @@
 
     <script src="https://cdn.jsdelivr.net/npm/appwrite@10.0.0"></script>
     <script>
+        // تكوين Appwrite مع API Key
         const client = new Appwrite.Client();
         client
-            .setEndpoint('https://cloud.appwrite.io/v1') // نقطة النهاية
-            .setProject('67a7b2e0003038b4f3fd'); // استبدل بـ Project ID الخاص بك
+            .setEndpoint('https://cloud.appwrite.io/v1')
+            .setProject('67a7b2e0003038b4f3fd')
+            .setKey('standard_e12f606d48a90c8c477cb7bb8b65bb855bbcb995c3f3254359860863ce3a4eace5e33fb339371a359842126214183b173f1a179196defb883c04623f03ee815c2fd1f9d6ba48e00802e3cd9b0721373f682d211a48961a7a6a0007d46d4098cb56550f6dfd54833d278455250eb46278c9c1a3ede07795bf50913f6deeb8b130');
 
         const account = new Appwrite.Account(client);
         const database = new Appwrite.Databases(client);
         const storage = new Appwrite.Storage(client);
 
+        // تعريف المتغيرات الثابتة
         const DATABASE_ID = 'social_media_db';
         const POSTS_COLLECTION_ID = 'posts';
         const COMMENTS_COLLECTION_ID = 'comments';
@@ -221,52 +245,77 @@
 
         let currentPostId = null;
 
-        // إنشاء قواعد البيانات والمجموعات إذا لم تكن موجودة
+        // دالة تهيئة قاعدة البيانات والمجموعات تلقائياً
         async function initializeDatabase() {
             try {
-                // إنشاء قاعدة البيانات إذا لم تكن موجودة
-                const db = await database.get(DATABASE_ID).catch(async () => {
+                // إنشاء قاعدة البيانات
+                try {
+                    await database.get(DATABASE_ID);
+                } catch {
                     await database.create(DATABASE_ID, 'Social Media Database');
-                });
+                }
 
-                // إنشاء مجموعة المنشورات إذا لم تكن موجودة
-                const postsCollection = await database.getCollection(DATABASE_ID, POSTS_COLLECTION_ID).catch(async () => {
-                    await database.createCollection(DATABASE_ID, POSTS_COLLECTION_ID, 'Posts', [
-                        { key: 'content', type: 'string', required: true },
-                        { key: 'userId', type: 'string', required: true },
-                        { key: 'userEmail', type: 'string', required: true },
-                        { key: 'displayName', type: 'string', required: false },
-                        { key: 'likes', type: 'array', required: false },
-                        { key: 'mediaUrls', type: 'array', required: false },
-                        { key: 'timestamp', type: 'string', required: true }
-                    ]);
-                });
+                // إنشاء مجموعة المنشورات
+                try {
+                    await database.getCollection(DATABASE_ID, POSTS_COLLECTION_ID);
+                } catch {
+                    await database.createCollection(
+                        DATABASE_ID,
+                        POSTS_COLLECTION_ID,
+                        'Posts',
+                        [
+                            { key: 'content', type: 'string', required: true },
+                            { key: 'userId', type: 'string', required: true },
+                            { key: 'userEmail', type: 'string', required: true },
+                            { key: 'displayName', type: 'string', required: false },
+                            { key: 'likes', type: 'array', required: false },
+                            { key: 'mediaUrls', type: 'array', required: false },
+                            { key: 'timestamp', type: 'string', required: true }
+                        ]
+                    );
+                }
 
-                // إنشاء مجموعة التعليقات إذا لم تكن موجودة
-                const commentsCollection = await database.getCollection(DATABASE_ID, COMMENTS_COLLECTION_ID).catch(async () => {
-                    await database.createCollection(DATABASE_ID, COMMENTS_COLLECTION_ID, 'Comments', [
-                        { key: 'content', type: 'string', required: true },
-                        { key: 'userId', type: 'string', required: true },
-                        { key: 'displayName', type: 'string', required: false },
-                        { key: 'postId', type: 'string', required: true },
-                        { key: 'timestamp', type: 'string', required: true }
-                    ]);
-                });
+                // إنشاء مجموعة التعليقات
+                try {
+                    await database.getCollection(DATABASE_ID, COMMENTS_COLLECTION_ID);
+                } catch {
+                    await database.createCollection(
+                        DATABASE_ID,
+                        COMMENTS_COLLECTION_ID,
+                        'Comments',
+                        [
+                            { key: 'content', type: 'string', required: true },
+                            { key: 'userId', type: 'string', required: true },
+                            { key: 'displayName', type: 'string', required: false },
+                            { key: 'postId', type: 'string', required: true },
+                            { key: 'timestamp', type: 'string', required: true }
+                        ]
+                    );
+                }
 
-                // إنشاء bucket للتخزين إذا لم يكن موجودًا
-                const bucket = await storage.getBucket(BUCKET_ID).catch(async () => {
-                    await storage.createBucket(BUCKET_ID, 'Media Bucket', ['image/*', 'video/*']);
-                });
+                // إنشاء bucket للوسائط
+                try {
+                    await storage.getBucket(BUCKET_ID);
+                } catch {
+                    await storage.createBucket(
+                        BUCKET_ID,
+                        'Media Bucket',
+                        ['image/*', 'video/*'],
+                        ['role:all'],
+                        ['role:all'],
+                        ['role:all'],
+                        true
+                    );
+                }
 
+                console.log('تم تهيئة قاعدة البيانات والمجموعات بنجاح');
             } catch (error) {
-                console.error('Error initializing database:', error);
+                console.error('خطأ في تهيئة قاعدة البيانات:', error);
+                showError('authError', 'حدث خطأ في تهيئة قاعدة البيانات: ' + error.message);
             }
         }
 
-        // استدعاء الدالة لتهيئة قاعدة البيانات عند تحميل الصفحة
-        initializeDatabase();
-
-        // تعريف الدوال العامة
+        // وظائف التطبيق الرئيسية
         window.submitComment = async function() {
             const commentInput = document.getElementById('postCommentInput');
             const content = commentInput.value.trim();
@@ -429,6 +478,7 @@
 
             try {
                 await account.create('unique()', email, password);
+                await account.createEmailSession(email, password);
                 showError('authError', '');
                 alert('تم إنشاء الحساب بنجاح');
                 window.location.reload();
@@ -525,10 +575,11 @@
             document.getElementById('profileSection').style.display = 'block';
             document.getElementById('settingsSection').style.display = 'none';
             document.getElementById('postPage').style.display = 'none';
-            const user = account.get();
-            if (user) {
-                loadProfilePosts(user.$id);
-            }
+            account.get().then(user => {
+                if (user) {
+                    loadProfilePosts(user.$id);
+                }
+            });
         };
 
         window.showSettings = function() {
@@ -601,24 +652,30 @@
             errorElement.textContent = message;
         }
 
-        // مراقبة حالة المستخدم عند تحميل الصفحة
-        account.get().then(user => {
-            if (user) {
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
-                document.getElementById('logoutButton').style.display = 'block';
-                document.getElementById('displayName').value = user.name || '';
-                loadPosts();
-            } else {
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('contentSection').style.display = 'none';
-                document.getElementById('profileSection').style.display = 'none';
-                document.getElementById('settingsSection').style.display = 'none';
-                document.getElementById('postPage').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
-            }
-        }).catch(error => {
-            console.error('Error checking user session:', error);
+        // تهيئة التطبيق عند التحميل
+        window.addEventListener('load', function() {
+            // تهيئة قاعدة البيانات
+            initializeDatabase();
+
+            // مراقبة حالة المستخدم
+            account.get().then(user => {
+                if (user) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('contentSection').style.display = 'block';
+                    document.getElementById('logoutButton').style.display = 'block';
+                    document.getElementById('displayName').value = user.name || '';
+                    loadPosts();
+                } else {
+                    document.getElementById('authSection').style.display = 'block';
+                    document.getElementById('contentSection').style.display = 'none';
+                    document.getElementById('profileSection').style.display = 'none';
+                    document.getElementById('settingsSection').style.display = 'none';
+                    document.getElementById('postPage').style.display = 'none';
+                    document.getElementById('logoutButton').style.display = 'none';
+                }
+            }).catch(error => {
+                console.error('Error checking user session:', error);
+            });
         });
     </script>
 </body>
