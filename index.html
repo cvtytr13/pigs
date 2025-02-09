@@ -453,135 +453,173 @@
                 window.location.reload();
             } catch (error) {
                 showError('authError', 'بيانات تسجيل الدخول غير صحيحة: ' + error.message);
-        }
-    };
-
-    window.updateProfile = async function() {
-        const displayName = document.getElementById('displayName').value;
-        const newPassword = document.getElementById('newPassword').value;
-
-        try {
-            const user = await account.get();
-            if (displayName) {
-                await account.updateName(displayName);
             }
-            if (newPassword) {
-                await account.updatePassword(newPassword);
+        };
+
+        window.logout = async function() {
+            try {
+                await account.deleteSession('current');
+                window.location.reload();
+            } catch (error) {
+                showError('authError', 'حدث خطأ أثناء تسجيل الخروج: ' + error.message);
             }
-            alert('تم تحديث البروفايل بنجاح');
-        } catch (error) {
-            showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
-        }
-    };
+        };
 
-    window.createPost = async function() {
-        const content = document.getElementById('postContent').value;
-        const mediaInput = document.getElementById('mediaInput');
-        const files = mediaInput.files;
-        const loadingMessage = document.getElementById('loadingMessage');
+        window.createPost = async function() {
+            const content = document.getElementById('postContent').value.trim();
+            const mediaFiles = document.getElementById('mediaInput').files;
 
-        if (!content && files.length === 0) {
-            showError('postError', 'يرجى كتابة محتوى أو إضافة وسائط');
-            return;
-        }
+            if (!content && mediaFiles.length === 0) {
+                showError('postError', 'لا يمكن نشر منشور فارغ');
+                return;
+            }
 
-        try {
-            loadingMessage.style.display = 'block';
-            const user = await account.get();
-            const mediaUrls = [];
-
-            // رفع الوسائط إذا وجدت
-            if (files.length > 0) {
-                for (let file of files) {
-                    const response = await storage.createFile(BUCKET_ID, 'unique()', file);
-                    const fileUrl = storage.getFileView(BUCKET_ID, response.$id);
-                    mediaUrls.push(fileUrl.href);
+            try {
+                const user = await account.get();
+                if (!user) {
+                    showError('postError', 'يجب تسجيل الدخول أولاً');
+                    return;
                 }
+
+                document.getElementById('loadingMessage').style.display = 'block';
+
+                const mediaUrls = [];
+                for (let i = 0; i < mediaFiles.length; i++) {
+                    const file = mediaFiles[i];
+                    const response = await storage.createFile(BUCKET_ID, 'unique()', file);
+                    const url = await storage.getFileView(BUCKET_ID, response.$id);
+                    mediaUrls.push(url.href);
+                }
+
+                await database.createDocument(DATABASE_ID, POSTS_COLLECTION_ID, 'unique()', {
+                    content: content,
+                    userId: user.$id,
+                    userEmail: user.email,
+                    displayName: user.name || user.email,
+                    likes: [],
+                    mediaUrls: mediaUrls,
+                    timestamp: new Date().toISOString()
+                });
+
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('postContent').value = '';
+                document.getElementById('mediaInput').value = '';
+                showError('postError', '');
+                loadPosts();
+            } catch (error) {
+                document.getElementById('loadingMessage').style.display = 'none';
+                showError('postError', 'حدث خطأ أثناء النشر: ' + error.message);
             }
+        };
 
-            // إنشاء المنشور
-            await database.createDocument(DATABASE_ID, POSTS_COLLECTION_ID, 'unique()', {
-                content: content,
-                userId: user.$id,
-                userEmail: user.email,
-                displayName: user.name || user.email,
-                likes: [],
-                mediaUrls: mediaUrls,
-                timestamp: new Date().toISOString()
-            });
-
-            // إعادة تعيين النموذج
-            document.getElementById('postContent').value = '';
-            mediaInput.value = '';
-            loadingMessage.style.display = 'none';
+        window.showHome = function() {
+            document.getElementById('contentSection').style.display = 'block';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'none';
             loadPosts();
-        } catch (error) {
-            loadingMessage.style.display = 'none';
-            showError('postError', 'حدث خطأ أثناء إنشاء المنشور: ' + error.message);
+        };
+
+        window.showProfile = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            document.getElementById('settingsSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'none';
+            const user = account.get();
+            if (user) {
+                loadProfilePosts(user.$id);
+            }
+        };
+
+        window.showSettings = function() {
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'block';
+            document.getElementById('postPage').style.display = 'none';
+        };
+
+        window.updateProfile = async function() {
+            try {
+                const user = await account.get();
+                if (!user) {
+                    showError('authError', 'يجب تسجيل الدخول أولاً');
+                    return;
+                }
+
+                const displayName = document.getElementById('displayName').value;
+                const newPassword = document.getElementById('newPassword').value;
+
+                if (displayName) {
+                    await account.updateName(displayName);
+                }
+                if (newPassword) {
+                    await account.updatePassword(newPassword);
+                }
+
+                alert('تم تحديث البروفايل بنجاح');
+            } catch (error) {
+                showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
+            }
+        };
+
+        async function loadProfilePosts(userId) {
+            const profilePostsDiv = document.getElementById('profilePosts');
+            profilePostsDiv.innerHTML = "جاري التحميل...";
+            try {
+                const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID, [
+                    Appwrite.Query.equal('userId', userId)
+                ]);
+                profilePostsDiv.innerHTML = '';
+                response.documents.forEach(post => {
+                    profilePostsDiv.innerHTML += `
+                        <div class="post">
+                            <div onclick="showPostPage('${post.$id}')">
+                                <strong>${post.displayName || post.userEmail}</strong>
+                                <p>${post.content}</p>
+                                ${post.mediaUrls ? post.mediaUrls.map(url => 
+                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
+                                ).join('') : ''}
+                            </div>
+                            <div class="post-actions">
+                                <button class="like-button" onclick="toggleLike('${post.$id}', event)">
+                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                </button>
+                                <button class="comment-button" onclick="showPostPage('${post.$id}')">
+                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
+                                </button>
+                            </div>
+                        </div>`;
+                });
+            } catch (error) {
+                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
+            }
         }
-    };
 
-    window.deletePost = async function(postId) {
-        if (!confirm('هل أنت متأكد من حذف هذا المنشور؟')) {
-            return;
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.style.display = message ? 'block' : 'none';
+            errorElement.textContent = message;
         }
 
-        try {
-            await database.deleteDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
-            loadPosts();
-            showProfile(); // تحديث صفحة البروفايل
-        } catch (error) {
-            showError('postError', 'حدث خطأ أثناء حذف المنشور: ' + error.message);
-        }
-    };
-
-    // دالة للعودة من صفحة المنشور الواحد إلى الصفحة الرئيسية
-    window.backToHome = function() {
-        document.getElementById('postPage').style.display = 'none';
-        document.getElementById('contentSection').style.display = 'block';
-        currentPostId = null;
-    };
-
-    // إضافة مستمع الأحداث للتحقق من حالة تسجيل الدخول عند تحميل الصفحة
-    document.addEventListener('DOMContentLoaded', async function() {
-        try {
-            const user = await account.get();
+        // مراقبة حالة المستخدم عند تحميل الصفحة
+        account.get().then(user => {
             if (user) {
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
                 document.getElementById('logoutButton').style.display = 'block';
+                document.getElementById('displayName').value = user.name || '';
                 loadPosts();
+            } else {
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('contentSection').style.display = 'none';
+                document.getElementById('profileSection').style.display = 'none';
+                document.getElementById('settingsSection').style.display = 'none';
+                document.getElementById('postPage').style.display = 'none';
+                document.getElementById('logoutButton').style.display = 'none';
             }
-        } catch (error) {
-            console.log('المستخدم غير مسجل الدخول');
-        }
-    });
-
-    // إضافة مستمع الأحداث لمعالجة الصور قبل الرفع
-    document.getElementById('mediaInput').addEventListener('change', function(event) {
-        const files = event.target.files;
-        const mediaPreview = document.createElement('div');
-        mediaPreview.className = 'media-preview';
-
-        for (let file of files) {
-            if (file.type.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                mediaPreview.appendChild(img);
-            } else if (file.type.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.src = URL.createObjectURL(file);
-                video.controls = true;
-                mediaPreview.appendChild(video);
-            }
-        }
-
-        const existingPreview = document.querySelector('.media-preview');
-        if (existingPreview) {
-            existingPreview.remove();
-        }
-        document.querySelector('.post-form').appendChild(mediaPreview);
-    });
-</script>
+        }).catch(error => {
+            console.error('Error checking user session:', error);
+        });
+    </script>
 </body>
 </html>
