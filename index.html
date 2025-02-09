@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق التواصل</title>
-    <script src="https://cdn.jsdelivr.net/npm/appwrite@11.0.0"></script>
+    <title>تطبيق التواصل باستخدام Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 500px; margin: auto; }
@@ -30,105 +30,108 @@
     </div>
 
     <script>
-        // استخدام خادم وسيط لتجاوز CORS
-        const proxyUrl = "https://cors-anywhere.herokuapp.com/";
-        const apiUrl = "https://cloud.appwrite.io/v1";
+        // مفاتيح Supabase
+        const SUPABASE_URL = "https://xvftfiwrnjbgyvfe.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5c...";
+        
+        // تهيئة الاتصال مع Supabase
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const client = new Appwrite.Client();
-        client.setEndpoint(proxyUrl + apiUrl).setProject('67a7b2e0003038b4f3fd');
-
-        const account = new Appwrite.Account(client);
-        const databases = new Appwrite.Databases(client);
-
-        let databaseId = null;
-        let postsCollectionId = null;
-
+        // إنشاء الجداول تلقائيًا إذا لم تكن موجودة
         async function setupDatabase() {
             try {
-                const dbs = await databases.list();
-                let db = dbs.databases.find(d => d.name === "SocialApp");
-                if (!db) {
-                    db = await databases.create('unique()', 'SocialApp');
-                }
-                databaseId = db.$id;
+                const { data, error } = await supabase
+                    .rpc('create_posts_table');
 
-                const collections = await databases.listCollections(databaseId);
-                let postsCollection = collections.collections.find(c => c.name === "Posts");
-                if (!postsCollection) {
-                    postsCollection = await databases.createCollection(databaseId, 'unique()', 'Posts');
-                    await databases.createStringAttribute(databaseId, postsCollection.$id, 'content', 500, true);
+                if (error) {
+                    console.error("خطأ أثناء إنشاء الجدول:", error);
+                } else {
+                    console.log("تم التحقق من الجدول بنجاح!");
                 }
-                postsCollectionId = postsCollection.$id;
-                console.log("تم تهيئة قاعدة البيانات بنجاح!");
-
             } catch (error) {
-                console.error("خطأ في إعداد قاعدة البيانات:", error);
+                console.error("خطأ في إنشاء القاعدة:", error);
             }
         }
 
+        // تسجيل مستخدم جديد
         async function register() {
             try {
-                await account.create('unique()', document.getElementById('email').value, document.getElementById('password').value);
+                const { user, error } = await supabase.auth.signUp({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                });
+
+                if (error) throw error;
                 alert("تم التسجيل بنجاح!");
             } catch (error) {
-                alert("خطأ في التسجيل: " + error.message);
+                alert("خطأ: " + error.message);
             }
         }
 
+        // تسجيل الدخول
         async function login() {
             try {
-                await account.createEmailSession(document.getElementById('email').value, document.getElementById('password').value);
-                alert("تم تسجيل الدخول بنجاح!");
+                const { user, error } = await supabase.auth.signInWithPassword({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                });
+
+                if (error) throw error;
+                alert("تم تسجيل الدخول!");
                 getPosts();
             } catch (error) {
-                alert("خطأ في تسجيل الدخول: " + error.message);
+                alert("خطأ: " + error.message);
             }
         }
 
+        // إضافة منشور جديد
         async function addPost() {
-            if (!databaseId || !postsCollectionId) {
-                alert("لم يتم تهيئة قاعدة البيانات بعد.");
-                return;
-            }
-
             try {
-                await databases.createDocument(databaseId, postsCollectionId, 'unique()', { content: document.getElementById('postContent').value });
+                const { data, error } = await supabase
+                    .from('posts')
+                    .insert([{ content: document.getElementById('postContent').value }]);
+
+                if (error) throw error;
                 alert("تم نشر المنشور!");
                 getPosts();
             } catch (error) {
-                alert("خطأ في نشر المنشور: " + error.message);
+                alert("خطأ: " + error.message);
             }
         }
 
+        // جلب جميع المنشورات وعرضها
         async function getPosts() {
-            if (!databaseId || !postsCollectionId) {
-                alert("لم يتم تهيئة قاعدة البيانات بعد.");
-                return;
-            }
-
             try {
-                const response = await databases.listDocuments(databaseId, postsCollectionId);
-                document.getElementById('posts').innerHTML = response.documents.map(post => `
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('*');
+
+                if (error) throw error;
+
+                document.getElementById('posts').innerHTML = data.map(post => `
                     <div class="post">
                         <p>${post.content}</p>
-                        <button onclick="likePost('${post.$id}')">إعجاب</button>
-                        <button onclick="addComment('${post.$id}')">تعليق</button>
+                        <button onclick="likePost(${post.id})">إعجاب</button>
+                        <button onclick="addComment(${post.id})">تعليق</button>
                     </div>
                 `).join('');
             } catch (error) {
-                alert("خطأ في جلب المنشورات: " + error.message);
+                alert("خطأ: " + error.message);
             }
         }
 
+        // تسجيل إعجاب بالمنشور
         async function likePost(postId) {
             alert("تم تسجيل الإعجاب بالمنشور " + postId);
         }
 
+        // إضافة تعليق على المنشور
         async function addComment(postId) {
             const comment = prompt("اكتب تعليقك:");
             if (comment) alert("تمت إضافة تعليقك على المنشور " + postId);
         }
 
+        // التأكد من إنشاء الجدول ثم جلب المنشورات
         setupDatabase();
         getPosts();
     </script>
