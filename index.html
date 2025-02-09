@@ -30,31 +30,39 @@
     </div>
 
     <script>
+        // استخدام خادم وسيط لتجاوز CORS
+        const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+        const apiUrl = "https://cloud.appwrite.io/v1";
+
         const client = new Appwrite.Client();
+        client.setEndpoint(proxyUrl + apiUrl).setProject('67a7b2e0003038b4f3fd');
+
         const account = new Appwrite.Account(client);
         const databases = new Appwrite.Databases(client);
-
-        client
-            .setEndpoint('https://cloud.appwrite.io/v1')
-            .setProject('67a7b2e0003038b4f3fd')
-            .setKey('standard_e12f606d48a90c8...');
 
         let databaseId = null;
         let postsCollectionId = null;
 
         async function setupDatabase() {
             try {
-                let db = await databases.create('unique()', 'SocialApp');
+                const dbs = await databases.list();
+                let db = dbs.databases.find(d => d.name === "SocialApp");
+                if (!db) {
+                    db = await databases.create('unique()', 'SocialApp');
+                }
                 databaseId = db.$id;
 
-                let postsCollection = await databases.createCollection(databaseId, 'unique()', 'Posts');
+                const collections = await databases.listCollections(databaseId);
+                let postsCollection = collections.collections.find(c => c.name === "Posts");
+                if (!postsCollection) {
+                    postsCollection = await databases.createCollection(databaseId, 'unique()', 'Posts');
+                    await databases.createStringAttribute(databaseId, postsCollection.$id, 'content', 500, true);
+                }
                 postsCollectionId = postsCollection.$id;
+                console.log("تم تهيئة قاعدة البيانات بنجاح!");
 
-                await databases.createStringAttribute(databaseId, postsCollectionId, 'content', 500, true);
-
-                console.log("تم إنشاء قاعدة البيانات والجداول بنجاح!");
             } catch (error) {
-                console.error("خطأ في إنشاء القاعدة:", error);
+                console.error("خطأ في إعداد قاعدة البيانات:", error);
             }
         }
 
@@ -63,17 +71,17 @@
                 await account.create('unique()', document.getElementById('email').value, document.getElementById('password').value);
                 alert("تم التسجيل بنجاح!");
             } catch (error) {
-                alert("خطأ: " + error.message);
+                alert("خطأ في التسجيل: " + error.message);
             }
         }
 
         async function login() {
             try {
                 await account.createEmailSession(document.getElementById('email').value, document.getElementById('password').value);
-                alert("تم تسجيل الدخول!");
+                alert("تم تسجيل الدخول بنجاح!");
                 getPosts();
             } catch (error) {
-                alert("خطأ: " + error.message);
+                alert("خطأ في تسجيل الدخول: " + error.message);
             }
         }
 
@@ -88,7 +96,7 @@
                 alert("تم نشر المنشور!");
                 getPosts();
             } catch (error) {
-                alert("خطأ: " + error.message);
+                alert("خطأ في نشر المنشور: " + error.message);
             }
         }
 
@@ -108,7 +116,7 @@
                     </div>
                 `).join('');
             } catch (error) {
-                alert("خطأ: " + error.message);
+                alert("خطأ في جلب المنشورات: " + error.message);
             }
         }
 
