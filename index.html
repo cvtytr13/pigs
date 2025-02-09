@@ -1,742 +1,129 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>منصة التواصل الاجتماعي</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>تطبيق التواصل</title>
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@11.0.0"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f2f5;
-        }
-        .navbar {
-            background-color: #1877f2;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .navbar-icons {
-            display: flex;
-            gap: 20px;
-        }
-        .navbar-icons i {
-            cursor: pointer;
-            font-size: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 0 20px;
-        }
-        .post-form {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .post-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            resize: none;
-            font-size: 16px;
-        }
-        .button {
-            background-color: #1877f2;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .post {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .post:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .post-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .post-actions i {
-            cursor: pointer;
-            color: #1877f2;
-        }
-        .error-message {
-            color: red;
-            display: none;
-            margin: 10px 0;
-        }
-        .profile-section, .settings-section {
-            display: none;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .post-page {
-            padding: 20px;
-            max-width: 800px;
-            margin: 20px auto;
-        }
-        .comments-section {
-            margin-top: 30px;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-        }
-        .comment-input {
-            width: 100%;
-            padding: 12px;
-            margin-top: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        .comment {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .like-button, .comment-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #1877f2;
-            padding: 5px 10px;
-        }
-        .like-button:hover, .comment-button:hover {
-            background-color: #f0f2f5;
-            border-radius: 4px;
-        }
-        .media-preview {
-            margin-top: 10px;
-            max-width: 100%;
-            border-radius: 8px;
-        }
-        #loadingMessage {
-            font-size: 14px;
-            color: #1877f2;
-            margin-top: 10px;
-        }
-        .fa-spinner {
-            margin-right: 5px;
-        }
-        input[type="email"],
-        input[type="password"],
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        #authSection {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-        #logoutButton {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 500px; margin: auto; }
+        input, button, textarea { width: 100%; padding: 10px; margin: 5px 0; }
+        .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <div class="navbar-icons">
-            <i class="fas fa-home" onclick="showHome()"></i>
-            <i class="fas fa-user" onclick="showProfile()"></i>
-            <i class="fas fa-cog" onclick="showSettings()"></i>
-        </div>
-        <button onclick="logout()" id="logoutButton" style="display: none;">تسجيل الخروج</button>
-    </div>
 
     <div class="container">
-        <div id="authSection">
-            <h2>تسجيل الدخول</h2>
-            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
-            <input type="password" id="passwordInput" placeholder="كلمة المرور">
-            <button onclick="login()" class="button">تسجيل الدخول</button>
-            <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب</button>
-            <div id="authError" class="error-message"></div>
-        </div>
-
-        <div id="contentSection" style="display: none;">
-            <div class="post-form">
-                <textarea id="postContent" class="post-input" rows="3" placeholder="ماذا يدور في ذهنك؟"></textarea>
-                <input type="file" id="mediaInput" accept="image/*, video/*" multiple style="margin-bottom: 10px;">
-                <button onclick="createPost()" class="button">نشر</button>
-                <div id="postError" class="error-message"></div>
-                <div id="loadingMessage" style="display: none;">
-                    جاري التحميل والنشر... <i class="fas fa-spinner fa-spin"></i>
-                </div>
-            </div>
-            <div id="posts"></div>
-        </div>
-
-        <div id="postPage" class="post-page" style="display: none;">
-            <div id="singlePost"></div>
-            <div class="comments-section">
-                <h3>التعليقات</h3>
-                <div id="postComments"></div>
-                <textarea id="postCommentInput" class="comment-input" rows="3" placeholder="أضف تعليقًا..."></textarea>
-                <button onclick="submitComment()" class="button">إرسال التعليق</button>
-            </div>
-        </div>
-
-        <div id="profileSection" class="profile-section">
-            <h2>البروفايل</h2>
-            <div id="profilePosts"></div>
-        </div>
-
-        <div id="settingsSection" class="settings-section">
-            <h2>الإعدادات</h2>
-            <input type="text" id="displayName" placeholder="الاسم المعروض">
-            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة">
-            <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
-        </div>
+        <h2>تسجيل الدخول / التسجيل</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button onclick="register()">تسجيل</button>
+        <button onclick="login()">دخول</button>
+        
+        <h2>إضافة منشور</h2>
+        <textarea id="postContent" placeholder="اكتب منشورك هنا"></textarea>
+        <button onclick="addPost()">نشر</button>
+        
+        <h2>المنشورات</h2>
+        <div id="posts"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/appwrite@10.0.0"></script>
     <script>
-        // تكوين Appwrite مع API Key
         const client = new Appwrite.Client();
+        const account = new Appwrite.Account(client);
+        const databases = new Appwrite.Databases(client);
+
         client
             .setEndpoint('https://cloud.appwrite.io/v1')
             .setProject('67a7b2e0003038b4f3fd')
-            .setKey('standard_e12f606d48a90c8c477cb7bb8b65bb855bbcb995c3f3254359860863ce3a4eace5e33fb339371a359842126214183b173f1a179196defb883c04623f03ee815c2fd1f9d6ba48e00802e3cd9b0721373f682d211a48961a7a6a0007d46d4098cb56550f6dfd54833d278455250eb46278c9c1a3ede07795bf50913f6deeb8b130');
+            .setKey('standard_e12f606d48a90c8...');
 
-        const account = new Appwrite.Account(client);
-        const database = new Appwrite.Databases(client);
-        const storage = new Appwrite.Storage(client);
+        let databaseId = null;
+        let postsCollectionId = null;
 
-        // تعريف المتغيرات الثابتة
-        const DATABASE_ID = 'social_media_db';
-        const POSTS_COLLECTION_ID = 'posts';
-        const COMMENTS_COLLECTION_ID = 'comments';
-        const BUCKET_ID = 'media';
-
-        let currentPostId = null;
-
-        // دالة تهيئة قاعدة البيانات والمجموعات تلقائياً
-        async function initializeDatabase() {
+        async function setupDatabase() {
             try {
-                // إنشاء قاعدة البيانات
-                try {
-                    await database.get(DATABASE_ID);
-                } catch {
-                    await database.create(DATABASE_ID, 'Social Media Database');
-                }
+                let db = await databases.create('unique()', 'SocialApp');
+                databaseId = db.$id;
 
-                // إنشاء مجموعة المنشورات
-                try {
-                    await database.getCollection(DATABASE_ID, POSTS_COLLECTION_ID);
-                } catch {
-                    await database.createCollection(
-                        DATABASE_ID,
-                        POSTS_COLLECTION_ID,
-                        'Posts',
-                        [
-                            { key: 'content', type: 'string', required: true },
-                            { key: 'userId', type: 'string', required: true },
-                            { key: 'userEmail', type: 'string', required: true },
-                            { key: 'displayName', type: 'string', required: false },
-                            { key: 'likes', type: 'array', required: false },
-                            { key: 'mediaUrls', type: 'array', required: false },
-                            { key: 'timestamp', type: 'string', required: true }
-                        ]
-                    );
-                }
+                let postsCollection = await databases.createCollection(databaseId, 'unique()', 'Posts');
+                postsCollectionId = postsCollection.$id;
 
-                // إنشاء مجموعة التعليقات
-                try {
-                    await database.getCollection(DATABASE_ID, COMMENTS_COLLECTION_ID);
-                } catch {
-                    await database.createCollection(
-                        DATABASE_ID,
-                        COMMENTS_COLLECTION_ID,
-                        'Comments',
-                        [
-                            { key: 'content', type: 'string', required: true },
-                            { key: 'userId', type: 'string', required: true },
-                            { key: 'displayName', type: 'string', required: false },
-                            { key: 'postId', type: 'string', required: true },
-                            { key: 'timestamp', type: 'string', required: true }
-                        ]
-                    );
-                }
+                await databases.createStringAttribute(databaseId, postsCollectionId, 'content', 500, true);
 
-                // إنشاء bucket للوسائط
-                try {
-                    await storage.getBucket(BUCKET_ID);
-                } catch {
-                    await storage.createBucket(
-                        BUCKET_ID,
-                        'Media Bucket',
-                        ['image/*', 'video/*'],
-                        ['role:all'],
-                        ['role:all'],
-                        ['role:all'],
-                        true
-                    );
-                }
-
-                console.log('تم تهيئة قاعدة البيانات والمجموعات بنجاح');
+                console.log("تم إنشاء قاعدة البيانات والجداول بنجاح!");
             } catch (error) {
-                console.error('خطأ في تهيئة قاعدة البيانات:', error);
-                showError('authError', 'حدث خطأ في تهيئة قاعدة البيانات: ' + error.message);
+                console.error("خطأ في إنشاء القاعدة:", error);
             }
         }
 
-        // وظائف التطبيق الرئيسية
-        window.submitComment = async function() {
-            const commentInput = document.getElementById('postCommentInput');
-            const content = commentInput.value.trim();
+        async function register() {
+            try {
+                await account.create('unique()', document.getElementById('email').value, document.getElementById('password').value);
+                alert("تم التسجيل بنجاح!");
+            } catch (error) {
+                alert("خطأ: " + error.message);
+            }
+        }
 
-            if (!content || !currentPostId) {
-                showError('postError', 'يرجى إدخال تعليق');
+        async function login() {
+            try {
+                await account.createEmailSession(document.getElementById('email').value, document.getElementById('password').value);
+                alert("تم تسجيل الدخول!");
+                getPosts();
+            } catch (error) {
+                alert("خطأ: " + error.message);
+            }
+        }
+
+        async function addPost() {
+            if (!databaseId || !postsCollectionId) {
+                alert("لم يتم تهيئة قاعدة البيانات بعد.");
                 return;
             }
 
             try {
-                const user = await account.get();
-                if (!user) {
-                    showError('postError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                await database.createDocument(DATABASE_ID, COMMENTS_COLLECTION_ID, 'unique()', {
-                    content: content,
-                    userId: user.$id,
-                    displayName: user.name || user.email,
-                    postId: currentPostId,
-                    timestamp: new Date().toISOString()
-                });
-
-                commentInput.value = '';
-                loadComments(currentPostId);
+                await databases.createDocument(databaseId, postsCollectionId, 'unique()', { content: document.getElementById('postContent').value });
+                alert("تم نشر المنشور!");
+                getPosts();
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء إضافة التعليق: ' + error.message);
-            }
-        };
-
-        window.toggleLike = async function(postId, event) {
-            event.stopPropagation();
-
-            try {
-                const user = await account.get();
-                if (!user) {
-                    showError('postError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                const post = await database.getDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
-                const likes = post.likes || [];
-                const index = likes.indexOf(user.$id);
-
-                if (index === -1) {
-                    likes.push(user.$id);
-                } else {
-                    likes.splice(index, 1);
-                }
-
-                await database.updateDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: likes });
-                loadPosts();
-            } catch (error) {
-                showError('postError', 'حدث خطأ أثناء الإعجاب: ' + error.message);
-            }
-        };
-
-        async function loadPosts() {
-            const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = "جاري التحميل...";
-
-            try {
-                const user = await account.get();
-                if (!user) {
-                    showError('authError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID);
-                postsDiv.innerHTML = '';
-                response.documents.forEach(post => {
-                    postsDiv.innerHTML += `
-                        <div class="post">
-                            <div onclick="showPostPage('${post.$id}')">
-                                <strong>${post.displayName || post.userEmail}</strong>
-                                <p>${post.content}</p>
-                                ${post.mediaUrls ? post.mediaUrls.map(url => 
-                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
-                                ).join('') : ''}
-                            </div>
-                            <div class="post-actions">
-                                <button class="like-button" onclick="toggleLike('${post.$id}', event)">
-                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                                </button>
-                                <button class="comment-button" onclick="showPostPage('${post.$id}')">
-                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
+                alert("خطأ: " + error.message);
             }
         }
 
-        async function showPostPage(postId) {
-            currentPostId = postId;
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('postPage').style.display = 'block';
+        async function getPosts() {
+            if (!databaseId || !postsCollectionId) {
+                alert("لم يتم تهيئة قاعدة البيانات بعد.");
+                return;
+            }
 
             try {
-                const post = await database.getDocument(DATABASE_ID, POSTS_COLLECTION_ID, postId);
-                const singlePostDiv = document.getElementById('singlePost');
-
-                singlePostDiv.innerHTML = `
+                const response = await databases.listDocuments(databaseId, postsCollectionId);
+                document.getElementById('posts').innerHTML = response.documents.map(post => `
                     <div class="post">
-                        <strong>${post.displayName || post.userEmail}</strong>
                         <p>${post.content}</p>
-                        ${post.mediaUrls ? post.mediaUrls.map(url => 
-                            url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
-                        ).join('') : ''}
-                        <div class="post-actions">
-                            <button class="like-button" onclick="toggleLike('${post.$id}', event)">
-                                <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                            </button>
-                        </div>
+                        <button onclick="likePost('${post.$id}')">إعجاب</button>
+                        <button onclick="addComment('${post.$id}')">تعليق</button>
                     </div>
-                `;
-
-                loadComments(postId);
+                `).join('');
             } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل المنشور: ' + error.message);
-            }
-        }
-        window.showPostPage = showPostPage;
-
-        async function loadComments(postId) {
-            const commentsDiv = document.getElementById('postComments');
-            commentsDiv.innerHTML = "جاري تحميل التعليقات...";
-
-            try {
-                const response = await database.listDocuments(DATABASE_ID, COMMENTS_COLLECTION_ID, [
-                    Appwrite.Query.equal('postId', postId)
-                ]);
-                commentsDiv.innerHTML = '';
-                response.documents.forEach(comment => {
-                    commentsDiv.innerHTML += `
-                        <div class="comment">
-                            <strong>${comment.displayName || comment.userEmail}</strong>
-                            <p>${comment.content}</p>
-                            <small>${new Date(comment.timestamp).toLocaleString()}</small>
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل التعليقات: ' + error.message);
+                alert("خطأ: " + error.message);
             }
         }
 
-        // تعديل دالة التسجيل
-window.register = async function() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    if (!email || !password) {
-        showError('authError', 'يرجى ملء جميع الحقول');
-        return;
-    }
-
-    try {
-        // إظهار رسالة تحميل
-        showError('authError', 'جاري إنشاء الحساب...');
-        
-        // إنشاء الحساب
-        const user = await account.create('unique()', email, password);
-        
-        // تسجيل الدخول مباشرة بعد إنشاء الحساب
-        await account.createEmailSession(email, password);
-        
-        // إخفاء رسالة الخطأ
-        showError('authError', '');
-        
-        // تحديث واجهة المستخدم
-        document.getElementById('authSection').style.display = 'none';
-        document.getElementById('contentSection').style.display = 'block';
-        document.getElementById('logoutButton').style.display = 'block';
-        
-        // تحميل المنشورات
-        loadPosts();
-        
-        alert('تم إنشاء الحساب بنجاح');
-    } catch (error) {
-        // التعامل مع الأخطاء المختلفة
-        if (error.code === 409) {
-            showError('authError', 'البريد الإلكتروني مستخدم بالفعل');
-        } else {
-            showError('authError', 'حدث خطأ أثناء التسجيل: ' + error.message);
-        }
-    }
-};
-
-// تعديل دالة تسجيل الدخول
-window.login = async function() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    if (!email || !password) {
-        showError('authError', 'يرجى ملء جميع الحقول');
-        return;
-    }
-
-    try {
-        // إظهار رسالة تحميل
-        showError('authError', 'جاري تسجيل الدخول...');
-        
-        // محاولة تسجيل الدخول
-        await account.createEmailSession(email, password);
-        
-        // إخفاء رسالة الخطأ
-        showError('authError', '');
-        
-        // تحديث واجهة المستخدم
-        document.getElementById('authSection').style.display = 'none';
-        document.getElementById('contentSection').style.display = 'block';
-        document.getElementById('logoutButton').style.display = 'block';
-        
-        // تحميل المنشورات
-        loadPosts();
-        
-        // الحصول على معلومات المستخدم وتحديث الواجهة
-        const user = await account.get();
-        if (user.name) {
-            document.getElementById('displayName').value = user.name;
-        }
-        
-    } catch (error) {
-        // التعامل مع الأخطاء المختلفة
-        if (error.code === 401) {
-            showError('authError', 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
-        } else {
-            showError('authError', 'حدث خطأ أثناء تسجيل الدخول: ' + error.message);
-        }
-    }
-};
-
-// تحسين دالة إظهار الخطأ
-function showError(elementId, message) {
-    const errorElement = document.getElementById(elementId);
-    if (errorElement) {
-        errorElement.style.display = message ? 'block' : 'none';
-        errorElement.textContent = message;
-        // تمرير لأعلى الصفحة إذا كان هناك خطأ
-        if (message && !message.includes('جاري')) {
-            errorElement.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-}
-
-        window.logout = async function() {
-            try {
-                await account.deleteSession('current');
-                window.location.reload();
-            } catch (error) {
-                showError('authError', 'حدث خطأ أثناء تسجيل الخروج: ' + error.message);
-            }
-        };
-
-        window.createPost = async function() {
-            const content = document.getElementById('postContent').value.trim();
-            const mediaFiles = document.getElementById('mediaInput').files;
-
-            if (!content && mediaFiles.length === 0) {
-                showError('postError', 'لا يمكن نشر منشور فارغ');
-                return;
-            }
-
-            try {
-                const user = await account.get();
-                if (!user) {
-                    showError('postError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                document.getElementById('loadingMessage').style.display = 'block';
-
-                const mediaUrls = [];
-                for (let i = 0; i < mediaFiles.length; i++) {
-                    const file = mediaFiles[i];
-                    const response = await storage.createFile(BUCKET_ID, 'unique()', file);
-                    const url = await storage.getFileView(BUCKET_ID, response.$id);
-                    mediaUrls.push(url.href);
-                }
-
-                await database.createDocument(DATABASE_ID, POSTS_COLLECTION_ID, 'unique()', {
-                    content: content,
-                    userId: user.$id,
-                    userEmail: user.email,
-                    displayName: user.name || user.email,
-                    likes: [],
-                    mediaUrls: mediaUrls,
-                    timestamp: new Date().toISOString()
-                });
-
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('postContent').value = '';
-                document.getElementById('mediaInput').value = '';
-                showError('postError', '');
-                loadPosts();
-            } catch (error) {
-                document.getElementById('loadingMessage').style.display = 'none';
-                showError('postError', 'حدث خطأ أثناء النشر: ' + error.message);
-            }
-        };
-
-        window.showHome = function() {
-            document.getElementById('contentSection').style.display = 'block';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-            document.getElementById('postPage').style.display = 'none';
-            loadPosts();
-        };
-
-        window.showProfile = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'block';
-            document.getElementById('settingsSection').style.display = 'none';
-            document.getElementById('postPage').style.display = 'none';
-            account.get().then(user => {
-                if (user) {
-                    loadProfilePosts(user.$id);
-                }
-            });
-        };
-
-        window.showSettings = function() {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'block';
-            document.getElementById('postPage').style.display = 'none';
-        };
-
-        window.updateProfile = async function() {
-            try {
-                const user = await account.get();
-                if (!user) {
-                    showError('authError', 'يجب تسجيل الدخول أولاً');
-                    return;
-                }
-
-                const displayName = document.getElementById('displayName').value;
-                const newPassword = document.getElementById('newPassword').value;
-
-                if (displayName) {
-                    await account.updateName(displayName);
-                }
-                if (newPassword) {
-                    await account.updatePassword(newPassword);
-                }
-
-                alert('تم تحديث البروفايل بنجاح');
-            } catch (error) {
-                showError('authError', 'حدث خطأ أثناء تحديث البروفايل: ' + error.message);
-            }
-        };
-
-        async function loadProfilePosts(userId) {
-            const profilePostsDiv = document.getElementById('profilePosts');
-            profilePostsDiv.innerHTML = "جاري التحميل...";
-            try {
-                const response = await database.listDocuments(DATABASE_ID, POSTS_COLLECTION_ID, [
-                    Appwrite.Query.equal('userId', userId)
-                ]);
-                profilePostsDiv.innerHTML = '';
-                response.documents.forEach(post => {
-                    profilePostsDiv.innerHTML += `
-                        <div class="post">
-                            <div onclick="showPostPage('${post.$id}')">
-                                <strong>${post.displayName || post.userEmail}</strong>
-                                <p>${post.content}</p>
-                                ${post.mediaUrls ? post.mediaUrls.map(url => 
-                                    url.includes('image') ? `<img src="${url}" class="media-preview">` : `<video controls src="${url}" class="media-preview"></video>`
-                                ).join('') : ''}
-                            </div>
-                            <div class="post-actions">
-                                <button class="like-button" onclick="toggleLike('${post.$id}', event)">
-                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                                </button>
-                                <button class="comment-button" onclick="showPostPage('${post.$id}')">
-                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
-                                </button>
-                            </div>
-                        </div>`;
-                });
-            } catch (error) {
-                showError('postError', 'حدث خطأ أثناء تحميل المنشورات: ' + error.message);
-            }
+        async function likePost(postId) {
+            alert("تم تسجيل الإعجاب بالمنشور " + postId);
         }
 
-        function showError(elementId, message) {
-            const errorElement = document.getElementById(elementId);
-            errorElement.style.display = message ? 'block' : 'none';
-            errorElement.textContent = message;
+        async function addComment(postId) {
+            const comment = prompt("اكتب تعليقك:");
+            if (comment) alert("تمت إضافة تعليقك على المنشور " + postId);
         }
 
-        // تهيئة التطبيق عند التحميل
-        window.addEventListener('load', function() {
-            // تهيئة قاعدة البيانات
-            initializeDatabase();
-
-            // مراقبة حالة المستخدم
-            account.get().then(user => {
-                if (user) {
-                    document.getElementById('authSection').style.display = 'none';
-                    document.getElementById('contentSection').style.display = 'block';
-                    document.getElementById('logoutButton').style.display = 'block';
-                    document.getElementById('displayName').value = user.name || '';
-                    loadPosts();
-                } else {
-                    document.getElementById('authSection').style.display = 'block';
-                    document.getElementById('contentSection').style.display = 'none';
-                    document.getElementById('profileSection').style.display = 'none';
-                    document.getElementById('settingsSection').style.display = 'none';
-                    document.getElementById('postPage').style.display = 'none';
-                    document.getElementById('logoutButton').style.display = 'none';
-                }
-            }).catch(error => {
-                console.error('Error checking user session:', error);
-            });
-        });
+        setupDatabase();
+        getPosts();
     </script>
+
 </body>
 </html>
