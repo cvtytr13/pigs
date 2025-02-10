@@ -6,151 +6,7 @@
     <title>تطبيق التواصل باستخدام Supabase</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        :root {
-            --primary-color: #4A90E2;
-            --error-color: #FF4444;
-            --success-color: #4CAF50;
-            --background-color: #f0f2f5;
-            --card-background: #ffffff;
-            --text-color: #333333;
-            --border-radius: 8px;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            background: var(--card-background);
-            padding: 25px;
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        h2 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 10px;
-        }
-
-        input, textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 2px solid #ddd;
-            border-radius: var(--border-radius);
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-            font-size: 16px;
-        }
-
-        input:focus, textarea:focus {
-            border-color: var(--primary-color);
-            outline: none;
-        }
-
-        button {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #357ABD;
-        }
-
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-
-        .post {
-            border: 1px solid #eee;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: var(--border-radius);
-            background: #fcfcfc;
-            transition: transform 0.2s;
-        }
-
-        .post:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .error-message {
-            color: var(--error-color);
-            background-color: rgba(255, 68, 68, 0.1);
-            padding: 10px;
-            border-radius: var(--border-radius);
-            margin: 10px 0;
-            display: none;
-        }
-
-        .status-message {
-            color: var(--success-color);
-            background-color: rgba(76, 175, 80, 0.1);
-            padding: 10px;
-            border-radius: var(--border-radius);
-            margin: 10px 0;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .user-info {
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: var(--border-radius);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .post-meta {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .delete-btn {
-            background-color: var(--error-color);
-            padding: 5px 10px;
-            font-size: 14px;
-            float: left;
-        }
-
-        .delete-btn:hover {
-            background-color: #ff0000;
-        }
+        /* ... (ابقى على نفس الأنماط) ... */
     </style>
 </head>
 <body>
@@ -180,6 +36,7 @@
             <h2>إضافة منشور</h2>
             <div class="form-group">
                 <textarea id="postContent" placeholder="اكتب منشورك هنا" rows="4"></textarea>
+                <div class="char-count"></div>
                 <button onclick="addPost()" id="postBtn">نشر</button>
             </div>
         </div>
@@ -195,7 +52,6 @@
 
         let currentUser = null;
 
-        // تحسين عرض رسائل الخطأ
         function showError(message, duration = 5000) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.style.display = 'block';
@@ -205,7 +61,6 @@
             }, duration);
         }
 
-        // تحسين عرض رسائل النجاح
         function showSuccess(message, duration = 3000) {
             const statusDiv = document.getElementById('statusMessage');
             statusDiv.style.display = 'block';
@@ -216,7 +71,6 @@
         }
 
         async function checkConnection() {
-            const statusMessage = document.getElementById('statusMessage');
             try {
                 const { error } = await supabase
                     .from('posts')
@@ -268,6 +122,11 @@
 
             if (!email || !password) {
                 showError("يرجى ملء جميع الحقول المطلوبة");
+                return;
+            }
+
+            if (!validateEmail(email)) {
+                showError("البريد الإلكتروني غير صحيح");
                 return;
             }
 
@@ -417,27 +276,22 @@
             }
         }
 
-        // إضافة مستمعي ال</antArtifact>
-        // إضافة مستمعي الأحداث
         document.addEventListener("DOMContentLoaded", () => {
             checkConnection();
             checkUser();
 
-            // إضافة مستمع لحدث الضغط على Enter في حقل كلمة المرور
             document.getElementById('password').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     login();
                 }
             });
 
-            // إضافة مستمع لحدث الضغط على Ctrl+Enter في حقل المنشور
             document.getElementById('postContent').addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.key === 'Enter') {
                     addPost();
                 }
             });
 
-            // إعداد مستمع للتغييرات في حالة المصادقة
             supabase.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_IN') {
                     currentUser = session.user;
@@ -451,7 +305,6 @@
                 }
             });
 
-            // تحديث المنشورات تلقائياً كل دقيقة
             setInterval(() => {
                 if (currentUser) {
                     getPosts();
@@ -459,13 +312,11 @@
             }, 60000);
         });
 
-        // إضافة وظيفة للتحقق من صحة البريد الإلكتروني
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return re.test(email);
         }
 
-        // إضافة مستمعي الأحداث لحقول الإدخال للتحقق من صحتها
         document.getElementById('email').addEventListener('input', function() {
             if (!validateEmail(this.value)) {
                 this.style.borderColor = 'var(--error-color)';
@@ -482,7 +333,6 @@
             }
         });
 
-        // إضافة وظيفة لعرض عدد الأحرف المتبقية في المنشور
         document.getElementById('postContent').addEventListener('input', function() {
             const maxLength = 500;
             const remaining = maxLength - this.value.length;
@@ -506,7 +356,6 @@
             }
         });
 
-        // إضافة وظيفة للتعامل مع أخطاء الشبكة
         window.addEventListener('online', () => {
             showSuccess("تم استعادة الاتصال بالإنترنت");
             getPosts();
@@ -516,7 +365,6 @@
             showError("تم فقد الاتصال بالإنترنت", 0);
         });
 
-        // إضافة وظيفة للتأكد من حفظ المنشور قبل مغادرة الصفحة
         window.addEventListener('beforeunload', (e) => {
             const postContent = document.getElementById('postContent').value;
             if (postContent && postContent.trim().length > 0) {
