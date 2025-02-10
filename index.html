@@ -51,24 +51,41 @@
 
         let currentUser = null;
 
-        // **التحقق من حالة الاتصال بقاعدة البيانات**
+        // **التحقق من حالة الاتصال بقاعدة البيانات وإنشاء الجدول إذا لزم الأمر**
         async function checkConnection() {
             const statusMessage = document.getElementById('statusMessage');
             const errorMessage = document.getElementById('errorMessage');
 
             try {
-                // محاولة جلب بيانات من جدول "posts" للتحقق من الاتصال
-                const { data, error } = await supabase.from('posts').select('*').limit(1);
+                // التحقق من وجود جدول "posts"
+                const { data: tables, error } = await supabase
+                    .from('pg_tables')
+                    .select('tablename')
+                    .eq('schemaname', 'public')
+                    .eq('tablename', 'posts');
 
-                if (error) {
-                    throw error; // إذا كان هناك خطأ، قم برميه للتعامل معه
+                if (error) throw error;
+
+                // إذا لم يكن الجدول موجودًا، قم بإنشائه
+                if (tables.length === 0) {
+                    const { error: createTableError } = await supabase
+                        .from('sql')
+                        .query(`
+                            CREATE TABLE posts (
+                                id SERIAL PRIMARY KEY,
+                                content TEXT NOT NULL,
+                                user_id UUID NOT NULL,
+                                created_at TIMESTAMP DEFAULT NOW()
+                            );
+                        `);
+
+                    if (createTableError) throw createTableError;
+                    console.log("✅ تم إنشاء جدول 'posts' بنجاح!");
                 }
 
-                // إذا نجح الاتصال
                 statusMessage.innerText = "✅ الاتصال بقاعدة البيانات ناجح!";
-                errorMessage.innerText = ""; // إزالة أي رسائل خطأ سابقة
+                errorMessage.innerText = "";
             } catch (error) {
-                // إذا فشل الاتصال
                 statusMessage.innerText = "❌ فشل الاتصال بقاعدة البيانات!";
                 errorMessage.innerText = "تفاصيل الخطأ: " + error.message;
                 console.error("خطأ في الاتصال بقاعدة البيانات:", error);
@@ -143,11 +160,11 @@
             }
         }
 
-        // **جلب المنشورات مع أسماء المستخدمين**
+        // **جلب المنشورات**
         async function getPosts() {
             const { data, error } = await supabase
                 .from("posts")
-                .select("id, content, user_id, users(username)")
+                .select("*")
                 .order("created_at", { ascending: false });
 
             if (error) {
@@ -155,29 +172,9 @@
             } else {
                 document.getElementById('posts').innerHTML = data.map(post => `
                     <div class="post">
-                        <p><strong>${post.users ? post.users.username : "مجهول"}</strong>: ${post.content}</p>
-                        <div class="post-actions">
-                            <button onclick="likePost(${post.id})">👍 إعجاب</button>
-                            <button onclick="addComment(${post.id})">💬 تعليق</button>
-                        </div>
-                        <div id="comments-${post.id}"></div>
+                        <p><strong>${post.user_id}</strong>: ${post.content}</p>
                     </div>
                 `).join('');
-            }
-        }
-
-        // **إضافة إعجاب للمنشور**
-        async function likePost(postId) {
-            if (!currentUser) {
-                document.getElementById('errorMessage').innerText = "⚠️ يجب تسجيل الدخول أولاً!";
-                return;
-            }
-
-            const { error } = await supabase.from("likes").insert([{ post_id: postId, user_id: currentUser.id }]);
-            if (error) {
-                document.getElementById('errorMessage').innerText = "❌ خطأ في تسجيل الإعجاب: " + error.message;
-            } else {
-                alert("👍 تم تسجيل إعجابك!");
             }
         }
 
