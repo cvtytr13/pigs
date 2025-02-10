@@ -35,20 +35,19 @@
 
     <script>
         // **تهيئة Supabase**
-        const SUPABASE_URL = "https://xvftfiwrnjbgyvfe.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5c...";
+        const SUPABASE_URL = "https://xvftfivwrnjbgyvfeimz.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2ZnRmaXZ3cm5qYmd5dmZlaW16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzODY3MTEsImV4cCI6MjA1Mzk2MjcxMX0.NAgwIlw-98m8y5EW2dlXEcc-rFKI-TYyUpeEj5_CJKs";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
 
-        // **التحقق من الاتصال بقاعدة البيانات عند تحميل الصفحة**
-        async function checkDatabaseConnection() {
-            try {
-                const { data, error } = await supabase.auth.getUser();
-                if (error) throw error;
-                console.log("✅ متصل بقاعدة البيانات.");
-            } catch (error) {
-                document.body.innerHTML = "<h1 style='color:red;'>⚠️ خطأ: لا يمكن الاتصال بقاعدة البيانات</h1>";
+        // **التحقق من جلسة المستخدم**
+        async function checkUser() {
+            const { data: { user } } = await supabase.auth.getUser();
+            currentUser = user;
+            if (user) {
+                document.getElementById("logoutBtn").classList.remove("hidden");
+                getPosts();
             }
         }
 
@@ -57,12 +56,11 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            try {
-                const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) throw error;
-                alert("✅ تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
-            } catch (error) {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) {
                 document.getElementById('errorMessage').innerText = "❌ خطأ في التسجيل: " + error.message;
+            } else {
+                alert("✅ تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
             }
         }
 
@@ -71,25 +69,14 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            try {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-                alert("✅ تم تسجيل الدخول بنجاح!");
-                document.getElementById("logoutBtn").classList.remove("hidden");
-                getUser();
-                getPosts();
-            } catch (error) {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
                 document.getElementById('errorMessage').innerText = "❌ خطأ في تسجيل الدخول: " + error.message;
-            }
-        }
-
-        // **جلب بيانات المستخدم بعد تسجيل الدخول**
-        async function getUser() {
-            const { data, error } = await supabase.auth.getUser();
-            if (!error && data.user) {
-                currentUser = data.user;
             } else {
-                console.error("فشل في جلب المستخدم:", error);
+                alert("✅ تم تسجيل الدخول بنجاح!");
+                currentUser = data.user;
+                document.getElementById("logoutBtn").classList.remove("hidden");
+                getPosts();
             }
         }
 
@@ -110,16 +97,15 @@
 
             const content = document.getElementById('postContent').value;
 
-            try {
-                const { data, error } = await supabase
-                    .from("posts")
-                    .insert([{ content, user_id: currentUser.id }]);
+            const { error } = await supabase
+                .from("posts")
+                .insert([{ content, user_id: currentUser.id }]);
 
-                if (error) throw error;
+            if (error) {
+                document.getElementById('errorMessage').innerText = "❌ خطأ في نشر المنشور: " + error.message;
+            } else {
                 alert("✅ تم نشر المنشور!");
                 getPosts();
-            } catch (error) {
-                document.getElementById('errorMessage').innerText = "❌ خطأ في نشر المنشور: " + error.message;
             }
         }
 
@@ -135,7 +121,7 @@
             } else {
                 document.getElementById('posts').innerHTML = data.map(post => `
                     <div class="post">
-                        <p><strong>${post.users.username}</strong>: ${post.content}</p>
+                        <p><strong>${post.users ? post.users.username : "مجهول"}</strong>: ${post.content}</p>
                         <button onclick="likePost(${post.id})">👍 إعجاب</button>
                         <button onclick="addComment(${post.id})">💬 تعليق</button>
                         <div id="comments-${post.id}"></div>
@@ -151,17 +137,30 @@
                 return;
             }
 
-            try {
-                const { error } = await supabase.from("likes").insert([{ post_id: postId, user_id: currentUser.id }]);
-                if (error) throw error;
-                alert("👍 تم تسجيل إعجابك!");
-            } catch (error) {
+            const { error } = await supabase.from("likes").insert([{ post_id: postId, user_id: currentUser.id }]);
+            if (error) {
                 document.getElementById('errorMessage').innerText = "❌ خطأ في تسجيل الإعجاب: " + error.message;
+            } else {
+                alert("👍 تم تسجيل إعجابك!");
+            }
+        }
+
+        // **تحميل التعليقات لكل منشور**
+        async function getComments(postId) {
+            const { data, error } = await supabase
+                .from("comments")
+                .select("content, users(username)")
+                .eq("post_id", postId);
+
+            if (!error) {
+                document.getElementById(`comments-${postId}`).innerHTML = data.map(comment => `
+                    <p><strong>${comment.users.username}</strong>: ${comment.content}</p>
+                `).join('');
             }
         }
 
         // **تنفيذ الفحص عند تحميل الصفحة**
-        document.addEventListener("DOMContentLoaded", checkDatabaseConnection);
+        document.addEventListener("DOMContentLoaded", checkUser);
     </script>
 
 </body>
