@@ -54,13 +54,24 @@
         // **التحقق من حالة الاتصال بقاعدة البيانات**
         async function checkConnection() {
             const statusMessage = document.getElementById('statusMessage');
+            const errorMessage = document.getElementById('errorMessage');
+
             try {
+                // محاولة جلب بيانات من جدول "posts" للتحقق من الاتصال
                 const { data, error } = await supabase.from('posts').select('*').limit(1);
-                if (error) throw error;
+
+                if (error) {
+                    throw error; // إذا كان هناك خطأ، قم برميه للتعامل معه
+                }
+
+                // إذا نجح الاتصال
                 statusMessage.innerText = "✅ الاتصال بقاعدة البيانات ناجح!";
+                errorMessage.innerText = ""; // إزالة أي رسائل خطأ سابقة
             } catch (error) {
+                // إذا فشل الاتصال
                 statusMessage.innerText = "❌ فشل الاتصال بقاعدة البيانات!";
-                console.error(error);
+                errorMessage.innerText = "تفاصيل الخطأ: " + error.message;
+                console.error("خطأ في الاتصال بقاعدة البيانات:", error);
             }
         }
 
@@ -167,20 +178,6 @@
                 document.getElementById('errorMessage').innerText = "❌ خطأ في تسجيل الإعجاب: " + error.message;
             } else {
                 alert("👍 تم تسجيل إعجابك!");
-            }
-        }
-
-        // **تحميل التعليقات لكل منشور**
-        async function getComments(postId) {
-            const { data, error } = await supabase
-                .from("comments")
-                .select("content, users(username)")
-                .eq("post_id", postId);
-
-            if (!error) {
-                document.getElementById(`comments-${postId}`).innerHTML = data.map(comment => `
-                    <p><strong>${comment.users.username}</strong>: ${comment.content}</p>
-                `).join('');
             }
         }
 
