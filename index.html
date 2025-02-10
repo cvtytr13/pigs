@@ -7,29 +7,32 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; text-align: center; background-color: #f0f2f5; }
-        .container { max-width: 500px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .container { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
         input, button, textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; }
         .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #fff; border-radius: 5px; text-align: left; }
         .hidden { display: none; }
         .error-message { color: red; font-weight: bold; }
-        .success-message { color: green; font-weight: bold; }
-        .connection-status { margin-bottom: 20px; padding: 10px; border-radius: 5px; }
-        .connected { background-color: #d4edda; color: #155724; }
-        .disconnected { background-color: #f8d7da; color: #721c24; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
+        .status-message { color: green; font-weight: bold; margin-bottom: 10px; }
+        .button-group { display: flex; gap: 10px; margin-top: 10px; }
+        .button-group button { flex: 1; }
+        .post-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .post-actions button { flex: 1; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div id="connectionStatus" class="connection-status hidden">جارٍ التحقق من حالة الاتصال...</div>
-        <h2>تسجيل الدخول / التسجيل</h2>
+        <h2>تطبيق التواصل</h2>
+        <p id="statusMessage" class="status-message">🔃 جاري التحقق من حالة الاتصال...</p>
         <p id="errorMessage" class="error-message"></p>
+
+        <h2>تسجيل الدخول / التسجيل</h2>
         <input type="email" id="email" placeholder="البريد الإلكتروني">
         <input type="password" id="password" placeholder="كلمة المرور">
-        <button onclick="register()">تسجيل</button>
-        <button onclick="login()">دخول</button>
+        <div class="button-group">
+            <button onclick="register()">تسجيل</button>
+            <button onclick="login()">دخول</button>
+        </div>
         <button onclick="logout()" class="hidden" id="logoutBtn">تسجيل الخروج</button>
 
         <h2>إضافة منشور</h2>
@@ -50,19 +53,15 @@
 
         // **التحقق من حالة الاتصال بقاعدة البيانات**
         async function checkConnection() {
-            const connectionStatus = document.getElementById("connectionStatus");
+            const statusMessage = document.getElementById('statusMessage');
             try {
-                const { data, error } = await supabase.from("posts").select("*").limit(1);
+                const { data, error } = await supabase.from('posts').select('*').limit(1);
                 if (error) throw error;
-                connectionStatus.classList.remove("disconnected");
-                connectionStatus.classList.add("connected");
-                connectionStatus.innerText = "✅ متصل بقاعدة البيانات";
+                statusMessage.innerText = "✅ الاتصال بقاعدة البيانات ناجح!";
             } catch (error) {
-                connectionStatus.classList.remove("connected");
-                connectionStatus.classList.add("disconnected");
-                connectionStatus.innerText = "❌ غير متصل بقاعدة البيانات";
+                statusMessage.innerText = "❌ فشل الاتصال بقاعدة البيانات!";
+                console.error(error);
             }
-            connectionStatus.classList.remove("hidden");
         }
 
         // **التحقق من جلسة المستخدم**
@@ -146,8 +145,10 @@
                 document.getElementById('posts').innerHTML = data.map(post => `
                     <div class="post">
                         <p><strong>${post.users ? post.users.username : "مجهول"}</strong>: ${post.content}</p>
-                        <button onclick="likePost(${post.id})">👍 إعجاب</button>
-                        <button onclick="addComment(${post.id})">💬 تعليق</button>
+                        <div class="post-actions">
+                            <button onclick="likePost(${post.id})">👍 إعجاب</button>
+                            <button onclick="addComment(${post.id})">💬 تعليق</button>
+                        </div>
                         <div id="comments-${post.id}"></div>
                     </div>
                 `).join('');
