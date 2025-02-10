@@ -3,134 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق تواصل اجتماعي</title>
+    <title>تطبيق التواصل باستخدام Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        body { font-family: Arial, sans-serif; direction: rtl; text-align: center; }
-        .container { width: 80%; margin: auto; }
-        .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
-        .like-btn, .comment-btn { cursor: pointer; color: blue; margin: 5px; }
-        #posts { margin-top: 20px; }
-        input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        .container { max-width: 500px; margin: auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        input, button, textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; }
+        .post { border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #fff; border-radius: 5px; text-align: left; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>تسجيل الدخول / إنشاء حساب</h2>
-        <input type="text" id="username" placeholder="اسم المستخدم">
+        <h2>تسجيل الدخول / التسجيل</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button onclick="register()">تسجيل</button>
         <button onclick="login()">دخول</button>
-        <h3 id="welcome"></h3>
+        <button onclick="logout()" class="hidden" id="logoutBtn">تسجيل الخروج</button>
 
-        <h2>نشر منشور جديد</h2>
-        <textarea id="postContent" placeholder="اكتب شيئًا..."></textarea>
-        <input type="file" id="mediaUpload">
+        <h2>إضافة منشور</h2>
+        <textarea id="postContent" placeholder="اكتب منشورك هنا"></textarea>
         <button onclick="addPost()">نشر</button>
 
-        <h2>المشاركات</h2>
+        <h2>المنشورات</h2>
         <div id="posts"></div>
     </div>
 
     <script>
-        // معرف ملف JSON على Google Drive
-        const FILE_ID = "HjZwWx1c7g2dV7U4b62SGODBaWPM9E";  // ضع معرف الملف الحقيقي هنا
-        const DRIVE_URL = `https://drive.google.com/uc?export=download&id=${FILE_ID}`;
+        // **تهيئة Supabase**
+        const SUPABASE_URL = "https://xvftfiwrnjbgyvfe.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5c...";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // رابط API لتحديث البيانات عبر Google Apps Script
-        const API_URL = "https://script.google.com/macros/s/AKfycbx.../exec"; // ضع رابط API الحقيقي هنا
+        let currentUser = null;
 
-        let user = localStorage.getItem("user") || "";
-        let posts = [];
+        // **تسجيل مستخدم جديد**
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabase.auth.signUp({ email, password });
 
-        document.getElementById("welcome").innerText = user ? `مرحبًا، ${user}` : "";
-
-        function login() {
-            user = document.getElementById("username").value;
-            if (user) {
-                localStorage.setItem("user", user);
-                document.getElementById("welcome").innerText = `مرحبًا، ${user}`;
+            if (error) {
+                alert("❌ خطأ في التسجيل: " + error.message);
+            } else {
+                alert("✅ تم التسجيل بنجاح! تحقق من بريدك الإلكتروني.");
             }
         }
 
-        // تحميل البيانات من Google Drive
-        async function loadPosts() {
-            try {
-                let response = await fetch(DRIVE_URL);
-                let data = await response.json();
-                posts = data.posts;
-                renderPosts();
-            } catch (error) {
-                console.error("خطأ في تحميل البيانات:", error);
+        // **تسجيل الدخول**
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                alert("❌ خطأ في تسجيل الدخول: " + error.message);
+            } else {
+                alert("✅ تم تسجيل الدخول بنجاح!");
+                document.getElementById("logoutBtn").classList.remove("hidden");
+                getUser();
+                getPosts();
             }
         }
 
-        // حفظ البيانات عبر Google Apps Script API
-        async function savePosts() {
-            try {
-                let response = await fetch(API_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ posts })
-                });
-                console.log(await response.text());
-            } catch (error) {
-                console.error("خطأ في حفظ البيانات:", error);
+        // **جلب بيانات المستخدم بعد تسجيل الدخول**
+        async function getUser() {
+            const { data, error } = await supabase.auth.getUser();
+            if (!error && data.user) {
+                currentUser = data.user;
+            } else {
+                console.error("فشل في جلب المستخدم:", error);
             }
         }
 
-        function addPost() {
-            let content = document.getElementById("postContent").value;
-            let file = document.getElementById("mediaUpload").files[0];
-
-            if (!content && !file) return;
-
-            let reader = new FileReader();
-            reader.onload = function (e) {
-                let post = { user, content, media: file ? e.target.result : null, likes: 0, comments: [] };
-                posts.push(post);
-                savePosts();
-                renderPosts();
-            };
-
-            if (file) reader.readAsDataURL(file);
-            else reader.onload();
+        // **تسجيل الخروج**
+        async function logout() {
+            await supabase.auth.signOut();
+            alert("🚪 تم تسجيل الخروج!");
+            document.getElementById("logoutBtn").classList.add("hidden");
+            currentUser = null;
         }
 
-        function renderPosts() {
-            let postsContainer = document.getElementById("posts");
-            postsContainer.innerHTML = "";
+        // **إضافة منشور**
+        async function addPost() {
+            if (!currentUser) {
+                alert("⚠️ يجب تسجيل الدخول أولاً!");
+                return;
+            }
 
-            posts.forEach((post, index) => {
-                let postDiv = document.createElement("div");
-                postDiv.className = "post";
-                postDiv.innerHTML = `
-                    <h4>${post.user}</h4>
-                    <p>${post.content}</p>
-                    ${post.media ? `<img src="${post.media}" width="200">` : ""}
-                    <p>
-                        ❤️ <span class="like-btn" onclick="likePost(${index})">${post.likes} إعجاب</span>
-                        💬 <span class="comment-btn" onclick="commentPost(${index})">تعليق</span>
-                    </p>
-                    <div id="comments-${index}">${post.comments.map(c => `<p>${c.user}: ${c.text}</p>`).join("")}</div>
-                `;
-                postsContainer.appendChild(postDiv);
-            });
+            const content = document.getElementById('postContent').value;
+
+            const { data, error } = await supabase
+                .from("posts")
+                .insert([{ content, user_id: currentUser.id }]);
+
+            if (error) {
+                alert("❌ خطأ في نشر المنشور: " + error.message);
+            } else {
+                alert("✅ تم نشر المنشور!");
+                getPosts();
+            }
         }
 
-        function likePost(index) {
-            posts[index].likes++;
-            savePosts();
-            renderPosts();
+        // **جلب المنشورات مع أسماء المستخدمين**
+        async function getPosts() {
+            const { data, error } = await supabase
+                .from("posts")
+                .select("id, content, user_id, users(username)")
+                .order("created_at", { ascending: false });
+
+            if (error) {
+                alert("❌ خطأ في تحميل المنشورات: " + error.message);
+            } else {
+                document.getElementById('posts').innerHTML = data.map(post => `
+                    <div class="post">
+                        <p><strong>${post.users.username}</strong>: ${post.content}</p>
+                        <button onclick="likePost(${post.id})">👍 إعجاب</button>
+                        <button onclick="addComment(${post.id})">💬 تعليق</button>
+                        <div id="comments-${post.id}"></div>
+                    </div>
+                `).join('');
+            }
         }
 
-        function commentPost(index) {
-            let comment = prompt("اكتب تعليقك:");
+        // **إضافة إعجاب للمنشور**
+        async function likePost(postId) {
+            if (!currentUser) {
+                alert("⚠️ يجب تسجيل الدخول أولاً!");
+                return;
+            }
+
+            const { error } = await supabase.from("likes").insert([{ post_id: postId, user_id: currentUser.id }]);
+            if (error) {
+                alert("❌ خطأ في تسجيل الإعجاب: " + error.message);
+            } else {
+                alert("👍 تم تسجيل إعجابك!");
+            }
+        }
+
+        // **إضافة تعليق**
+        async function addComment(postId) {
+            if (!currentUser) {
+                alert("⚠️ يجب تسجيل الدخول أولاً!");
+                return;
+            }
+
+            const comment = prompt("💬 اكتب تعليقك:");
             if (!comment) return;
-            posts[index].comments.push({ user, text: comment });
-            savePosts();
-            renderPosts();
+
+            const { error } = await supabase.from("comments").insert([{ post_id: postId, user_id: currentUser.id, comment_text: comment }]);
+            if (error) {
+                alert("❌ خطأ في إضافة التعليق: " + error.message);
+            } else {
+                alert("✅ تمت إضافة تعليقك!");
+                loadComments(postId);
+            }
         }
 
-        loadPosts();
+        // **تحميل التعليقات لمنشور معين**
+        async function loadComments(postId) {
+            const { data, error } = await supabase
+                .from("comments")
+                .select("comment_text, users(username)")
+                .eq("post_id", postId);
+
+            if (!error) {
+                document.getElementById(`comments-${postId}`).innerHTML = data.map(comment => `
+                    <p><strong>${comment.users.username}</strong>: ${comment.comment_text}</p>
+                `).join('');
+            }
+        }
+
+        getUser();
+        getPosts();
     </script>
 
 </body>
