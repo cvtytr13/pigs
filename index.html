@@ -139,7 +139,8 @@
             appId: "1:353675326399:web:1836fcb73faf9d0f39670a"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
         let currentUser = null;
@@ -164,6 +165,7 @@
             const password = document.getElementById('password').value;
             try {
                 await auth.signInWithEmailAndPassword(email, password);
+                alert('تم تسجيل الدخول بنجاح!');
             } catch (error) {
                 alert('خطأ في تسجيل الدخول: ' + error.message);
             }
@@ -175,6 +177,7 @@
             const password = document.getElementById('password').value;
             try {
                 await auth.createUserWithEmailAndPassword(email, password);
+                alert('تم إنشاء الحساب بنجاح!');
             } catch (error) {
                 alert('خطأ في إنشاء الحساب: ' + error.message);
             }
@@ -183,6 +186,7 @@
         // تسجيل الخروج
         function logout() {
             auth.signOut();
+            alert('تم تسجيل الخروج بنجاح!');
         }
 
         // إرسال رسالة
@@ -200,7 +204,6 @@
                         const reader = new FileReader();
                         reader.onload = async (e) => {
                             mediaUrl = e.target.result;
-                            localStorage.setItem(`media_${Date.now()}`, mediaUrl);
                             await db.collection('messages').add({
                                 text: message,
                                 mediaUrl: mediaUrl,
