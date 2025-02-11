@@ -1,168 +1,102 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>تطبيق المحادثة الخاصة</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>تطبيق المحادثة</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.18.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.18.0/firebase-auth-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.18.0/firebase-firestore-compat.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background-color: #f0f2f5;
         }
-        .navbar {
-            background-color: #1877f2;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .navbar-icons {
-            display: flex;
-            gap: 20px;
-        }
-        .navbar-icons i {
-            cursor: pointer;
-            font-size: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 0 20px;
-        }
-        .message-form {
+        #loginContainer, #chatContainer {
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
         }
-        .message-input {
+        #chatContainer {
+            display: none;
+        }
+        #messagesContainer {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 70%;
+        }
+        .sent {
+            background-color: #0084ff;
+            color: white;
+            margin-right: auto;
+        }
+        .received {
+            background-color: #e9ecef;
+            margin-left: auto;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
             width: 100%;
-            padding: 12px;
+            padding: 8px;
+            margin: 5px 0;
             border: 1px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 10px;
-            resize: none;
-            font-size: 16px;
+            box-sizing: border-box;
         }
-        .button {
-            background-color: #1877f2;
+        button {
+            background-color: #0084ff;
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
+            margin: 5px 0;
         }
-        .message {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: all 0.3s;
+        button:hover {
+            background-color: #0073e6;
         }
-        .message:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .message-actions {
+        #messageForm {
             display: flex;
             gap: 10px;
-            margin-top: 10px;
         }
-        .message-actions i {
-            cursor: pointer;
-            color: #1877f2;
-        }
-        .error-message {
-            color: red;
-            display: none;
-        }
-        .messages-section {
-            display: none;
-        }
-        .media-preview {
-            margin-top: 10px;
-        }
-        .media-preview img, .media-preview video {
-            max-width: 100%;
-            border-radius: 8px;
+        #messageInput {
+            flex-grow: 1;
         }
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <div class="navbar-icons">
-            <i class="fas fa-envelope" onclick="showMessages()"></i>
-            <i class="fas fa-cog" onclick="showSettings()"></i>
-        </div>
-        <button onclick="logout()" id="logoutButton" style="display: none;">تسجيل الخروج</button>
+    <div id="loginContainer">
+        <h2>تسجيل الدخول</h2>
+        <input type="email" id="email" placeholder="البريد الإلكتروني">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button onclick="login()">تسجيل الدخول</button>
+        <button onclick="register()">إنشاء حساب جديد</button>
     </div>
 
-    <div class="container">
-        <!-- قسم تسجيل الدخول -->
-        <div id="authSection">
-            <h2>تسجيل الدخول</h2>
-            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
-            <input type="password" id="passwordInput" placeholder="كلمة المرور">
-            <button onclick="login()" class="button">تسجيل الدخول</button>
-            <button onclick="register()" class="button" style="background-color: #42b72a;">إنشاء حساب</button>
-            <div id="authError" class="error-message"></div>
-        </div>
-
-        <!-- قسم الرسائل الخاصة -->
-        <div id="messagesSection" class="messages-section">
-            <h2>الرسائل الخاصة</h2>
-            <div class="message-form">
-                <select id="recipientSelect"></select>
-                <textarea id="messageContent" class="message-input" rows="3" placeholder="اكتب رسالة..."></textarea>
-                <input type="file" id="messageMediaInput" accept="image/*, video/*" multiple style="margin-bottom: 10px;">
-                <button onclick="sendMessage()" class="button">إرسال</button>
-                <div id="messageError" class="error-message"></div>
-            </div>
-            <div id="messages"></div>
-        </div>
-
-        <!-- قسم الإعدادات -->
-        <div id="settingsSection" class="settings-section">
-            <h2>الإعدادات</h2>
-            <input type="text" id="displayName" placeholder="الاسم المعروض">
-            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة">
-            <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
-        </div>
+    <div id="chatContainer">
+        <h2>المحادثة</h2>
+        <button onclick="logout()" style="float: left;">تسجيل الخروج</button>
+        <div id="messagesContainer"></div>
+        <form id="messageForm" onsubmit="sendMessage(event)">
+            <input type="text" id="messageInput" placeholder="اكتب رسالتك هنا...">
+            <button type="submit">إرسال</button>
+        </form>
     </div>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
-        import { 
-            getAuth, 
-            signInWithEmailAndPassword, 
-            createUserWithEmailAndPassword, 
-            signOut, 
-            onAuthStateChanged, 
-            updateProfile, 
-            updatePassword 
-        } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            query, 
-            orderBy, 
-            getDocs, 
-            where,
-            serverTimestamp 
-        } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
-
+    <script>
+        // تهيئة Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
             authDomain: "messge102.firebaseapp.com",
@@ -172,210 +106,93 @@
             appId: "1:353675326399:web:1836fcb73faf9d0f39670a"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        let currentUser = null;
 
-        // تحويل الملفات إلى Base64
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = (error) => reject(error);
-            });
-        }
-
-        // إرسال رسالة خاصة
-        window.sendMessage = async function() {
-            const recipientId = document.getElementById('recipientSelect').value;
-            const content = document.getElementById('messageContent').value.trim();
-            const mediaFiles = document.getElementById('messageMediaInput').files;
-
-            if (!content && mediaFiles.length === 0) {
-                document.getElementById('messageError').style.display = 'block';
-                document.getElementById('messageError').textContent = "لا يمكن إرسال رسالة فارغة";
-                return;
-            }
-
-            const user = auth.currentUser;
-            if (!user) {
-                document.getElementById('messageError').style.display = 'block';
-                document.getElementById('messageError').textContent = "يجب تسجيل الدخول أولاً";
-                return;
-            }
-
-            try {
-                const mediaBase64 = [];
-                for (let i = 0; i < mediaFiles.length; i++) {
-                    const file = mediaFiles[i];
-                    const base64 = await fileToBase64(file);
-                    mediaBase64.push(base64);
-                }
-
-                await addDoc(collection(db, 'messages'), {
-                    senderId: user.uid,
-                    recipientId: recipientId,
-                    content: content,
-                    mediaBase64: mediaBase64,
-                    timestamp: serverTimestamp()
-                });
-
-                document.getElementById('messageContent').value = '';
-                document.getElementById('messageMediaInput').value = '';
-                document.getElementById('messageError').style.display = 'none';
-                loadMessages();
-            } catch (error) {
-                document.getElementById('messageError').style.display = 'block';
-                document.getElementById('messageError').textContent = "حدث خطأ أثناء إرسال الرسالة";
-            }
-        };
-
-        // تحميل الرسائل الخاصة
-        async function loadMessages() {
-            const messagesDiv = document.getElementById('messages');
-            messagesDiv.innerHTML = "جاري التحميل...";
-
-            const user = auth.currentUser;
-            if (!user) return;
-
-            try {
-                const q = query(
-                    collection(db, 'messages'),
-                    where('senderId', '==', user.uid),
-                    orderBy('timestamp', 'desc')
-                );
-                const snapshot = await getDocs(q);
-
-                messagesDiv.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const message = doc.data();
-                    messagesDiv.innerHTML += `
-                        <div class="message">
-                            <strong>إلى: ${message.recipientId}</strong>
-                            <p>${message.content}</p>
-                            ${message.mediaBase64 ? message.mediaBase64.map(base64 => 
-                                base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview">` : `<video controls src="${base64}" class="media-preview"></video>`
-                            ).join('') : ''}
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                console.error('Error loading messages:', error);
-                messagesDiv.innerHTML = "حدث خطأ أثناء تحميل الرسائل";
-            }
-        }
-
-        // دالة تسجيل الدخول
-        window.login = async function () {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                document.getElementById('authError').style.display = 'none';
-                showMessages(); // عرض قسم الرسائل بعد تسجيل الدخول
-            } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
-            }
-        };
-
-        // دالة تسجيل حساب جديد
-        window.register = async function () {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                document.getElementById('authError').style.display = 'none';
-            } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
-            }
-        };
-
-        // دالة تسجيل الخروج
-        window.logout = async function () {
-            try {
-                await signOut(auth);
-                window.location.reload(); // إعادة تحميل الصفحة بعد تسجيل الخروج
-            } catch (error) {
-                console.error('Error logging out:', error);
-            }
-        };
-
-        // دالة تحديث البروفايل
-        window.updateProfile = async function () {
-            const user = auth.currentUser;
-            if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
-                return;
-            }
-
-            const displayName = document.getElementById('displayName').value;
-            const newPassword = document.getElementById('newPassword').value;
-
-            try {
-                if (displayName) {
-                    await updateProfile(user, { displayName: displayName });
-                }
-                if (newPassword) {
-                    await updatePassword(user, newPassword);
-                }
-                alert("تم تحديث البروفايل بنجاح");
-            } catch (error) {
-                alert("حدث خطأ أثناء تحديث البروفايل");
-            }
-        };
-
-        // دالة عرض الرسائل الخاصة
-        window.showMessages = function () {
-            document.getElementById('authSection').style.display = 'none';
-            document.getElementById('messagesSection').style.display = 'block';
-            document.getElementById('settingsSection').style.display = 'none';
-            loadMessages(); // تحميل الرسائل الخاصة
-            loadRecipients(); // تحميل قائمة المستخدمين لإرسال الرسائل
-        };
-
-        // دالة عرض الإعدادات
-        window.showSettings = function () {
-            document.getElementById('authSection').style.display = 'none';
-            document.getElementById('messagesSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'block';
-        };
-
-        // دالة تحميل قائمة المستخدمين لإرسال الرسائل
-        async function loadRecipients() {
-            const recipientSelect = document.getElementById('recipientSelect');
-            recipientSelect.innerHTML = '<option value="">اختر مستلمًا</option>';
-            try {
-                const q = query(collection(db, 'users'));
-                const snapshot = await getDocs(q);
-                snapshot.forEach((doc) => {
-                    const user = doc.data();
-                    if (user.uid !== auth.currentUser.uid) {
-                        recipientSelect.innerHTML += `<option value="${user.uid}">${user.displayName || user.email}</option>`;
-                    }
-                });
-            } catch (error) {
-                console.error('Error loading recipients:', error);
-            }
-        }
-
-        // مراقبة حالة المستخدم
-        onAuthStateChanged(auth, (user) => {
+        // مراقبة حالة تسجيل الدخول
+        auth.onAuthStateChanged((user) => {
             if (user) {
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('messagesSection').style.display = 'block';
-                document.getElementById('logoutButton').style.display = 'block';
-                document.getElementById('displayName').value = user.displayName || '';
+                currentUser = user;
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'block';
                 loadMessages();
             } else {
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('messagesSection').style.display = 'none';
-                document.getElementById('settingsSection').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
+                currentUser = null;
+                document.getElementById('loginContainer').style.display = 'block';
+                document.getElementById('chatContainer').style.display = 'none';
             }
         });
+
+        // تسجيل الدخول
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                alert('خطأ في تسجيل الدخول: ' + error.message);
+            }
+        }
+
+        // إنشاء حساب جديد
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+            } catch (error) {
+                alert('خطأ في إنشاء الحساب: ' + error.message);
+            }
+        }
+
+        // تسجيل الخروج
+        function logout() {
+            auth.signOut();
+        }
+
+        // إرسال رسالة
+        async function sendMessage(e) {
+            e.preventDefault();
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (message && currentUser) {
+                try {
+                    await db.collection('messages').add({
+                        text: message,
+                        userId: currentUser.uid,
+                        userEmail: currentUser.email,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    messageInput.value = '';
+                } catch (error) {
+                    alert('خطأ في إرسال الرسالة: ' + error.message);
+                }
+            }
+        }
+
+        // تحميل الرسائل
+        function loadMessages() {
+            db.collection('messages')
+                .orderBy('timestamp', 'asc')
+                .onSnapshot((snapshot) => {
+                    const messagesContainer = document.getElementById('messagesContainer');
+                    
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const message = change.doc.data();
+                            const messageElement = document.createElement('div');
+                            messageElement.className = `message ${message.userId === currentUser.uid ? 'sent' : 'received'}`;
+                            messageElement.textContent = `${message.userEmail}: ${message.text}`;
+                            messagesContainer.appendChild(messageElement);
+                        }
+                    });
+                    
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                });
+        }
     </script>
 </body>
 </html>
