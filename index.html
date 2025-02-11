@@ -373,42 +373,42 @@
 
         // تحميل المنشورات
         async function loadPosts() {
-    const postsDiv = document.getElementById('posts');
-    postsDiv.innerHTML = "جاري التحميل...";
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = "جاري التحميل...";
 
-    try {
-        const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
-        const snapshot = await getDocs(q);
+            try {
+                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
+                const snapshot = await getDocs(q);
 
-        postsDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-            const post = doc.data();
-            const postId = doc.id;
-            postsDiv.innerHTML += `
-                <div class="post">
-                    <div onclick="showPostPage('${postId}')">
-                        <strong onclick="showProfilePage('${post.userId}')">${post.displayName || post.userEmail}</strong>
-                        <p>${post.content}</p>
-                        ${post.mediaBase64 ? post.mediaBase64.map(base64 => 
-                            base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview">` : `<video controls src="${base64}" class="media-preview"></video>`
-                        ).join('') : ''}
-                    </div>
-                    <div class="post-actions">
-                        <button class="like-button" onclick="toggleLike('${postId}', event)">
-                            <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                        </button>
-                        <button class="comment-button" onclick="showPostPage('${postId}')">
-                            <i class="fas fa-comment"></i> ${post.commentsCount || 0}
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-    } catch (error) {
-        console.error('Error loading posts:', error);
-        postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات";
-    }
-}
+                postsDiv.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const post = doc.data();
+                    const postId = doc.id;
+                    postsDiv.innerHTML += `
+                        <div class="post">
+                            <div onclick="showPostPage('${postId}')">
+                                <strong onclick="showProfilePage('${post.userId}')">${post.displayName || post.userEmail}</strong>
+                                <p>${post.content}</p>
+                                ${post.mediaBase64 ? post.mediaBase64.map(base64 => 
+                                    base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview">` : `<video controls src="${base64}" class="media-preview"></video>`
+                                ).join('') : ''}
+                            </div>
+                            <div class="post-actions">
+                                <button class="like-button" onclick="toggleLike('${postId}', event)">
+                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                                </button>
+                                <button class="comment-button" onclick="showPostPage('${postId}')">
+                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات";
+            }
+        }
 
         // تحميل الرسائل الخاصة
         async function loadMessages() {
@@ -451,6 +451,8 @@
             const password = document.getElementById('passwordInput').value;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
+                document.getElementById('authError').style.display = 'none';
+                loadPosts(); // تحميل المنشورات بعد تسجيل الدخول
             } catch (error) {
                 document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
@@ -463,6 +465,7 @@
             const password = document.getElementById('passwordInput').value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
+                document.getElementById('authError').style.display = 'none';
             } catch (error) {
                 document.getElementById('authError').style.display = 'block';
                 document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
@@ -522,7 +525,7 @@
             document.getElementById('postPage').style.display = 'none';
             const user = auth.currentUser;
             if (user) {
-                loadProfilePosts(user.uid); // تحميل منشورات المستخدم
+                loadProfilePosts(user.uid); // تحميل منشورات المستخدم الحالي
             }
         };
 
@@ -617,7 +620,8 @@
                         </div>`;
                 });
             } catch (error) {
-                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
+                console.error('Error loading profile posts:', error);
+                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل منشورات البروفايل.";
             }
         }
 
