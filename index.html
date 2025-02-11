@@ -8,7 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-storage-compat.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -195,126 +194,16 @@
         
         const auth = firebase.auth();
         const db = firebase.firestore();
-        const storage = firebase.storage();
         let currentUser = null;
         let isOnline = true;
 
-        // إظهار رسالة الحالة
-        function showStatus(message, isError = false) {
-            const statusDiv = document.getElementById('statusMessage');
-            statusDiv.textContent = message;
-            statusDiv.style.display = 'block';
-            statusDiv.style.backgroundColor = isError ? '#f8d7da' : '#d4edda';
-            statusDiv.style.color = isError ? '#721c24' : '#155724';
-            setTimeout(() => {
-                statusDiv.style.display = 'none';
-            }, 3000);
-        }
-
-        // إظهار رسالة الخطأ
-        function showError(message) {
-            const errorDiv = document.getElementById('loginError');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        // إخفاء رسالة الخطأ
-        function hideError() {
-            document.getElementById('loginError').style.display = 'none';
-        }
-
-        // التحكم في حالة الأزرار أثناء العمليات
-        function toggleButtons(disabled) {
-            document.getElementById('sendBtn').disabled = disabled;
-            document.getElementById('mediaBtn').disabled = disabled;
-            document.getElementById('messageInput').disabled = disabled;
-        }
-
-        // تسجيل الدخول
-        async function login() {
-            hideError();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-
-            if (!email || !password) {
-                showError('يرجى ملء جميع الحقول');
-                return;
-            }
-
-            document.getElementById('loginBtn').disabled = true;
-            document.getElementById('loadingSpinner').style.display = 'block';
-
-            try {
-                await auth.signInWithEmailAndPassword(email, password);
-                hideError();
-            } catch (error) {
-                let errorMessage = 'خطأ في تسجيل الدخول';
-                if (error.code === 'auth/user-not-found') {
-                    errorMessage = 'البريد الإلكتروني غير مسجل';
-                } else if (error.code === 'auth/wrong-password') {
-                    errorMessage = 'كلمة المرور غير صحيحة';
-                }
-                showError(errorMessage);
-            } finally {
-                document.getElementById('loginBtn').disabled = false;
-                document.getElementById('loadingSpinner').style.display = 'none';
-            }
-        }
-
-        // إنشاء حساب جديد
-        async function register() {
-            hideError();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const profilePic = document.getElementById('profilePicInput').files[0];
-
-            if (!email || !password) {
-                showError('يرجى ملء جميع الحقول');
-                return;
-            }
-
-            if (password.length < 6) {
-                showError('يجب أن تكون كلمة المرور 6 أحرف على الأقل');
-                return;
-            }
-
-            document.getElementById('registerBtn').disabled = true;
-            document.getElementById('loadingSpinner').style.display = 'block';
-
-            try {
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-
-                if (profilePic) {
-                    const storageRef = storage.ref();
-                    const profilePicRef = storageRef.child(`profilePics/${user.uid}/${profilePic.name}`);
-                    await profilePicRef.put(profilePic);
-                    const profilePicUrl = await profilePicRef.getDownloadURL();
-                    await user.updateProfile({
-                        photoURL: profilePicUrl
-                    });
-                }
-
-                hideError();
-                showStatus('تم إنشاء الحساب بنجاح');
-            } catch (error) {
-                let errorMessage = 'خطأ في إنشاء الحساب';
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
-                }
-                showError(errorMessage);
-            } finally {
-                document.getElementById('registerBtn').disabled = false;
-                document.getElementById('loadingSpinner').style.display = 'none';
-            }
-        }
-
-        // تسجيل الخروج
-        function logout() {
-            auth.signOut().then(() => {
-                showStatus('تم تسجيل الخروج بنجاح');
-            }).catch(() => {
-                showStatus('حدث خطأ أثناء تسجيل الخروج', true);
+        // تحويل الملف إلى Base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(error);
             });
         }
 
@@ -331,25 +220,16 @@
             toggleButtons(true);
 
             try {
-                let mediaUrl = null;
+                let mediaBase64 = null;
                 if (file) {
-                    const fileSize = file.size / 1024 / 1024; // تحويل إلى ميجابايت
-                    if (fileSize > 5) {
-                        throw new Error('حجم الملف يجب أن يكون أقل من 5 ميجابايت');
-                    }
-
-                    const storageRef = storage.ref();
-                    const fileRef = storageRef.child(`media/${Date.now()}_${file.name}`);
-                    await fileRef.put(file);
-                    mediaUrl = await fileRef.getDownloadURL();
+                    mediaBase64 = await fileToBase64(file);
                 }
 
                 await db.collection('messages').add({
                     text: message,
-                    mediaUrl: mediaUrl,
+                    mediaBase64: mediaBase64,
                     userId: currentUser.uid,
                     userEmail: currentUser.email,
-                    userPhotoURL: currentUser.photoURL,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
@@ -385,16 +265,16 @@
                             messageElement.className = `message ${message.userId === currentUser.uid ? 'sent' : 'received'}`;
                             
                             let mediaContent = '';
-                            if (message.mediaUrl) {
-                                if (message.mediaUrl.includes('image')) {
-                                    mediaContent = `<img src="${message.mediaUrl}" class="media" alt="صورة">`;
-                                } else if (message.mediaUrl.includes('video')) {
-                                    mediaContent = `<video controls src="${message.mediaUrl}" class="media"></video>`;
+                            if (message.mediaBase64) {
+                                if (message.mediaBase64.includes('image')) {
+                                    mediaContent = `<img src="${message.mediaBase64}" class="media" alt="صورة">`;
+                                } else if (message.mediaBase64.includes('video')) {
+                                    mediaContent = `<video controls src="${message.mediaBase64}" class="media"></video>`;
                                 }
                             }
 
                             messageElement.innerHTML = `
-                                <img src="${message.userPhotoURL || 'https://via.placeholder.com/40'}" alt="User" class="avatar">
+                                <img src="https://via.placeholder.com/40" alt="User" class="avatar">
                                 <div class="content">
                                     <div>${message.userEmail}: ${message.text || ''}</div>
                                     ${mediaContent}
@@ -410,121 +290,6 @@
                     showStatus('حدث خطأ في تحميل الرسائل', true);
                 });
         }
-
-        // التعامل مع اتصال الإنترنت
-        window.addEventListener('online', () => {
-            isOnline = true;
-            showStatus('تم استعادة الاتصال بالإنترنت');
-            if (currentUser) {
-                loadMessages();
-            }
-        });
-
-        window.addEventListener('offline', () => {
-            isOnline = false;
-            showStatus('انقطع الاتصال بالإنترنت', true);
-        });
-
-        // مراقبة حالة المستخدم
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('chatContainer').style.display = 'block';
-                showStatus(`مرحباً ${user.email}`);
-                loadMessages();
-                setupMessageNotifications();
-            } else {
-                currentUser = null;
-                document.getElementById('loginContainer').style.display = 'block';
-                document.getElementById('chatContainer').style.display = 'none';
-                if (messagesListener) {
-                    messagesListener();
-                    messagesListener = null;
-                }
-            }
-        });
-
-        // طلب إذن الإشعارات
-        async function requestNotificationPermission() {
-            if ('Notification' in window) {
-                try {
-                    const permission = await Notification.requestPermission();
-                    if (permission === 'granted') {
-                        showStatus('تم تفعيل الإشعارات بنجاح');
-                    }
-                } catch (error) {
-                    console.error('Error requesting notification permission:', error);
-                }
-            }
-        }
-
-        // إظهار الإشعارات
-        function showNotification(message) {
-            if (Notification.permission === 'granted' && !document.hasFocus()) {
-                try {
-                    new Notification('رسالة جديدة', {
-                        body: message,
-                        icon: 'https://via.placeholder.com/50'
-                    });
-                } catch (error) {
-                    console.error('Error showing notification:', error);
-                }
-            }
-        }
-
-        // إعداد مراقبة الرسائل الجديدة للإشعارات
-        function setupMessageNotifications() {
-            if (!currentUser) return;
-
-            db.collection('messages')
-                .orderBy('timestamp', 'desc')
-                .limit(1)
-                .onSnapshot((snapshot) => {
-                    snapshot.docChanges().forEach((change) => {
-                        if (change.type === 'added') {
-                            const message = change.doc.data();
-                            if (message.userId !== currentUser.uid) {
-                                showNotification(`${message.userEmail}: ${message.text || 'أرسل وسائط'}`);
-                            }
-                        }
-                    });
-                }, (error) => {
-                    console.error('Error setting up message notifications:', error);
-                });
-        }
-
-        // تنظيف الموارد عند إغلاق النافذة
-        window.addEventListener('unload', () => {
-            if (messagesListener) {
-                messagesListener();
-            }
-        });
-
-        // طلب إذن الإشعارات عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', requestNotificationPermission);
-
-        // التعامل مع تحميل الملفات
-        document.getElementById('mediaInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const fileSize = file.size / 1024 / 1024; // تحويل إلى ميجابايت
-                if (fileSize > 5) {
-                    showStatus('حجم الملف يجب أن يكون أقل من 5 ميجابايت', true);
-                    e.target.value = '';
-                }
-            }
-        });
-
-        // منع إرسال النموذج عند الضغط على Enter إذا كان حقل الرسالة فارغاً
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                const messageInput = document.getElementById('messageInput');
-                if (!messageInput.value.trim() && !document.getElementById('mediaInput').files.length) {
-                    e.preventDefault();
-                }
-            }
-        });
     </script>
 </body>
 </html>
