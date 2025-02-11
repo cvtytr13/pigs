@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تطبيق المحادثة</title>
-    <!-- تحديث إصدارات مكتبات Firebase -->
+    <!-- تحديث مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-firestore-compat.js"></script>
@@ -15,6 +15,7 @@
             margin: 0;
             padding: 20px;
             background-color: #f0f2f5;
+            direction: rtl;
         }
         #loginContainer, #chatContainer {
             max-width: 600px;
@@ -54,7 +55,7 @@
             background-color: #e9ecef;
             margin-right: auto;
         }
-        .message img {
+        .message img.avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -70,27 +71,35 @@
         }
         input[type="text"], input[type="email"], input[type="password"] {
             width: 100%;
-            padding: 8px;
-            margin: 5px 0;
+            padding: 12px;
+            margin: 8px 0;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            font-size: 16px;
         }
         button {
             background-color: #0084ff;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 4px;
             cursor: pointer;
             margin: 5px 0;
+            font-size: 16px;
+            transition: background-color 0.3s;
         }
         button:hover {
             background-color: #0073e6;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         #messageForm {
             display: flex;
             gap: 10px;
+            margin-top: 20px;
         }
         #messageInput {
             flex-grow: 1;
@@ -102,14 +111,27 @@
             margin-top: 5px;
         }
         .error {
-            color: red;
-            margin: 5px 0;
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
             display: none;
         }
         #loadingSpinner {
             display: none;
             text-align: center;
             margin: 10px 0;
+            color: #0084ff;
+        }
+        .status-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
         }
     </style>
 </head>
@@ -127,12 +149,13 @@
     <div id="chatContainer">
         <h2>المحادثة</h2>
         <button onclick="logout()" style="float: left;">تسجيل الخروج</button>
+        <div class="status-message" id="statusMessage"></div>
         <div id="messagesContainer"></div>
         <form id="messageForm" onsubmit="sendMessage(event)">
             <input type="text" id="messageInput" placeholder="اكتب رسالتك هنا...">
             <input type="file" id="mediaInput" accept="image/*, video/*" style="display: none;">
-            <button type="button" onclick="document.getElementById('mediaInput').click()">إرسال ملف</button>
-            <button type="submit">إرسال</button>
+            <button type="button" onclick="document.getElementById('mediaInput').click()" id="mediaBtn">إرسال ملف</button>
+            <button type="submit" id="sendBtn">إرسال</button>
         </form>
     </div>
 
@@ -147,12 +170,31 @@
             appId: "1:353675326399:web:1836fcb73faf9d0f39670a"
         };
 
-        // تهيئة Firebase
-        const app = firebase.initializeApp(firebaseConfig);
+        // تهيئة Firebase مع التحقق من عدم تكرار التهيئة
+        let app;
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+        } catch (e) {
+            app = firebase.app();
+        }
+        
         const auth = firebase.auth();
         const db = firebase.firestore();
         const storage = firebase.storage();
         let currentUser = null;
+        let isOnline = true;
+
+        // إظهار رسالة الحالة
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.style.backgroundColor = isError ? '#f8d7da' : '#d4edda';
+            statusDiv.style.color = isError ? '#721c24' : '#155724';
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
 
         // إظهار رسالة الخطأ
         function showError(message) {
@@ -166,31 +208,17 @@
             document.getElementById('loginError').style.display = 'none';
         }
 
-        // إظهار/إخفاء مؤشر التحميل
-        function toggleLoading(show) {
-            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
-            document.getElementById('loginBtn').disabled = show;
-            document.getElementById('registerBtn').disabled = show;
+        // التحكم في حالة الأزرار أثناء العمليات
+        function toggleButtons(disabled) {
+            document.getElementById('sendBtn').disabled = disabled;
+            document.getElementById('mediaBtn').disabled = disabled;
+            document.getElementById('messageInput').disabled = disabled;
         }
-
-        // مراقبة حالة تسجيل الدخول
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('chatContainer').style.display = 'block';
-                loadMessages();
-            } else {
-                currentUser = null;
-                document.getElementById('loginContainer').style.display = 'block';
-                document.getElementById('chatContainer').style.display = 'none';
-            }
-        });
 
         // تسجيل الدخول
         async function login() {
             hideError();
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
@@ -198,7 +226,9 @@
                 return;
             }
 
-            toggleLoading(true);
+            document.getElementById('loginBtn').disabled = true;
+            document.getElementById('loadingSpinner').style.display = 'block';
+
             try {
                 await auth.signInWithEmailAndPassword(email, password);
                 hideError();
@@ -211,14 +241,15 @@
                 }
                 showError(errorMessage);
             } finally {
-                toggleLoading(false);
+                document.getElementById('loginBtn').disabled = false;
+                document.getElementById('loadingSpinner').style.display = 'none';
             }
         }
 
         // إنشاء حساب جديد
         async function register() {
             hideError();
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
@@ -231,7 +262,9 @@
                 return;
             }
 
-            toggleLoading(true);
+            document.getElementById('registerBtn').disabled = true;
+            document.getElementById('loadingSpinner').style.display = 'block';
+
             try {
                 await auth.createUserWithEmailAndPassword(email, password);
                 hideError();
@@ -242,13 +275,18 @@
                 }
                 showError(errorMessage);
             } finally {
-                toggleLoading(false);
+                document.getElementById('registerBtn').disabled = false;
+                document.getElementById('loadingSpinner').style.display = 'none';
             }
         }
 
         // تسجيل الخروج
         function logout() {
-            auth.signOut();
+            auth.signOut().then(() => {
+                showStatus('تم تسجيل الخروج بنجاح');
+            }).catch(() => {
+                showStatus('حدث خطأ أثناء تسجيل الخروج', true);
+            });
         }
 
         // إرسال رسالة
@@ -261,9 +299,16 @@
 
             if ((!message && !file) || !currentUser) return;
 
+            toggleButtons(true);
+
             try {
                 let mediaUrl = null;
                 if (file) {
+                    const fileSize = file.size / 1024 / 1024; // تحويل إلى ميجابايت
+                    if (fileSize > 5) {
+                        throw new Error('حجم الملف يجب أن يكون أقل من 5 ميجابايت');
+                    }
+
                     const storageRef = storage.ref();
                     const fileRef = storageRef.child(`media/${Date.now()}_${file.name}`);
                     await fileRef.put(file);
@@ -280,18 +325,29 @@
 
                 messageInput.value = '';
                 mediaInput.value = '';
+                showStatus('تم إرسال الرسالة بنجاح');
             } catch (error) {
                 console.error('خطأ في إرسال الرسالة:', error);
-                alert('حدث خطأ أثناء إرسال الرسالة');
+                showStatus(error.message || 'حدث خطأ أثناء إرسال الرسالة', true);
+            } finally {
+                toggleButtons(false);
             }
         }
 
         // تحميل الرسائل
+        let messagesListener = null;
+
         function loadMessages() {
-            db.collection('messages')
+            if (messagesListener) {
+                messagesListener();
+            }
+
+            const messagesContainer = document.getElementById('messagesContainer');
+            messagesContainer.innerHTML = '';
+
+            messagesListener = db.collection('messages')
                 .orderBy('timestamp', 'asc')
                 .onSnapshot((snapshot) => {
-                    const messagesContainer = document.getElementById('messagesContainer');
                     snapshot.docChanges().forEach((change) => {
                         if (change.type === 'added') {
                             const message = change.doc.data();
@@ -308,7 +364,7 @@
                             }
 
                             messageElement.innerHTML = `
-                                <img src="https://via.placeholder.com/40" alt="User">
+                                <img src="https://via.placeholder.com/40" alt="User" class="avatar">
                                 <div class="content">
                                     <div>${message.userEmail}: ${message.text || ''}</div>
                                     ${mediaContent}
@@ -319,49 +375,124 @@
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
                         }
                     });
+                }, (error) => {
+                    console.error("Error loading messages:", error);
+                    showStatus('حدث خطأ في تحميل الرسائل', true);
                 });
         }
 
-        // طلب إذن الإشعارات عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', () => {
-            if ('Notification' in window) {
-                Notification.requestPermission();
+        // التعامل مع اتصال الإنترنت
+        window.addEventListener('online', () => {
+            isOnline = true;
+            showStatus('تم استعادة الاتصال بالإنترنت');
+            if (currentUser) {
+                loadMessages();
             }
         });
 
-        // إظهار الإشعارات
-        function showNotification(message) {
-            if (Notification.permission === 'granted' && document.hidden) {
-                new Notification('رسالة جديدة', {
-                    body: message,
-                    icon: 'https://via.placeholder.com/50'
-                });
-            }
-        }
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            showStatus('انقطع الاتصال بالإنترنت', true);
+        });
 
-        // مراقبة الرسائل الجديدة للإشعارات
-        function setupMessageNotifications() {
-            if (currentUser) {
-                db.collection('messages')
-                    .orderBy('timestamp', 'desc')
-                    .limit(1)
-                    .onSnapshot((snapshot) => {
-                        snapshot.docChanges().forEach((change) => {
-                            if (change.type === 'added') {
-                                const message = change.doc.data();
-                                if (message.userId !== currentUser.uid) {
-                                    showNotification(`${message.userEmail}: ${message.text || 'أرسل وسائط'}`);
-                                }
-                            }
-                        });
-                    });
-            }
-        }
-
-        // تفعيل الإشعارات عند تسجيل الدخول
+        // مراقبة حالة المستخدم
         auth.onAuthStateChanged((user) => {
             if (user) {
+                currentUser = user;
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'block';
+                showStatus(`مرحباً ${user.email}`);
+                loadMessages();
                 setupMessageNotifications();
+            } else {
+                currentUser = null;
+                document.getElementById('loginContainer').style.display = 'block';
+                document.getElementById('chatContainer').style.display = 'none';
+                if (messagesListener) {
+                    messagesListener();
+                    messagesListener = null;
+                }
+            }
+        });
+
+        // طلب إذن الإشعارات
+        async function requestNotificationPermission() {
+            if ('Notification' in window) {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        showStatus('تم تفعيل الإشعارات بنجاح');
+                    }
+                } catch (error) {
+                    console.error('Error requesting notification permission:', error);
+                }
+            }
+        }
+
+        // إظهار الإشعارات
+        function showNotification(message) {
+            if (Notification.permission === 'granted' && !document.hasFocus()) {
+                try {
+                    new Notification('رسالة جديدة', {
+                        body: message,
+                        icon: 'https://via.placeholder.com/50'
+                    });
+                } catch (error) {
+                    console.error('Error showing notification:', error);
+                }
+            }
+        }
+
+        // إعداد مراقبة الرسائل الجديدة للإشعارات
+        function setupMessageNotifications() {
+            if (!currentUser) return;
+
+            db.collection('messages')
+                .orderBy('timestamp', 'desc')
+                .limit(1)
+                .onSnapshot((snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const message = change.doc.data();
+                            if (message.userId !== currentUser.uid) {
+                                showNotification(`${message.userEmail}: ${message.text || 'أرسل وسائط'}`);
+                            }
+                        }
+                    });
+                }, (error) => {
+                    console.error('Error setting up message notifications:', error);
+                });
+        }
+
+        // تنظيف الموارد عند إغلاق النافذة
+        window.addEventListener('unload', () => {
+            if (messagesListener) {
+                messagesListener();
+            }
+        });
+
+        // طلب إذن الإشعارات عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+
+        // التعامل مع تحميل الملفات
+        document.getElementById('mediaInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const fileSize = file.size / 1024 / 1024; // تحويل إلى ميجابايت
+                if (fileSize > 5) {
+                    showStatus('حجم الملف يجب أن يكون أقل من 5 ميجابايت', true);
+                    e.target.value = '';
+                }
+            }
+        });
+
+        // منع إرسال النموذج عند الضغط على Enter إذا كان حقل الرسالة فارغاً
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                const messageInput = document.getElementById('messageInput');
+                if (!messageInput.value.trim() && !document.getElementById('mediaInput').files.length) {
+                    e.preventDefault();
+                }
             }
         });
     </script>
