@@ -133,6 +133,19 @@
             border-radius: 4px;
             display: none;
         }
+        #profilePicInput {
+            display: none;
+        }
+        #profilePicLabel {
+            display: block;
+            text-align: center;
+            margin: 10px 0;
+            cursor: pointer;
+            color: #0084ff;
+        }
+        #profilePicLabel:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -141,6 +154,8 @@
         <div id="loginError" class="error"></div>
         <input type="email" id="email" placeholder="البريد الإلكتروني" required>
         <input type="password" id="password" placeholder="كلمة المرور" required>
+        <label id="profilePicLabel" for="profilePicInput">تحميل صورة البروفايل</label>
+        <input type="file" id="profilePicInput" accept="image/*">
         <button onclick="login()" id="loginBtn">تسجيل الدخول</button>
         <button onclick="register()" id="registerBtn">إنشاء حساب جديد</button>
         <div id="loadingSpinner">جاري التحميل...</div>
@@ -251,6 +266,7 @@
             hideError();
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
+            const profilePic = document.getElementById('profilePicInput').files[0];
 
             if (!email || !password) {
                 showError('يرجى ملء جميع الحقول');
@@ -266,8 +282,21 @@
             document.getElementById('loadingSpinner').style.display = 'block';
 
             try {
-                await auth.createUserWithEmailAndPassword(email, password);
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                if (profilePic) {
+                    const storageRef = storage.ref();
+                    const profilePicRef = storageRef.child(`profilePics/${user.uid}/${profilePic.name}`);
+                    await profilePicRef.put(profilePic);
+                    const profilePicUrl = await profilePicRef.getDownloadURL();
+                    await user.updateProfile({
+                        photoURL: profilePicUrl
+                    });
+                }
+
                 hideError();
+                showStatus('تم إنشاء الحساب بنجاح');
             } catch (error) {
                 let errorMessage = 'خطأ في إنشاء الحساب';
                 if (error.code === 'auth/email-already-in-use') {
@@ -320,6 +349,7 @@
                     mediaUrl: mediaUrl,
                     userId: currentUser.uid,
                     userEmail: currentUser.email,
+                    userPhotoURL: currentUser.photoURL,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
@@ -364,7 +394,7 @@
                             }
 
                             messageElement.innerHTML = `
-                                <img src="https://via.placeholder.com/40" alt="User" class="avatar">
+                                <img src="${message.userPhotoURL || 'https://via.placeholder.com/40'}" alt="User" class="avatar">
                                 <div class="content">
                                     <div>${message.userEmail}: ${message.text || ''}</div>
                                     ${mediaContent}
