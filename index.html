@@ -373,42 +373,42 @@
 
         // تحميل المنشورات
         async function loadPosts() {
-            const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = "جاري التحميل...";
+    const postsDiv = document.getElementById('posts');
+    postsDiv.innerHTML = "جاري التحميل...";
 
-            try {
-                const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
-                const snapshot = await getDocs(q);
+    try {
+        const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
 
-                postsDiv.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const post = doc.data();
-                    const postId = doc.id;
-                    postsDiv.innerHTML += `
-                        <div class="post">
-                            <div onclick="showPostPage('${postId}')">
-                                <strong onclick="showProfilePage('${post.userId}')">${post.displayName || post.userEmail}</strong>
-                                <p>${post.content}</p>
-                                ${post.mediaBase64 ? post.mediaBase64.map(base64 => 
-                                    base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview">` : `<video controls src="${base64}" class="media-preview"></video>`
-                                ).join('') : ''}
-                            </div>
-                            <div class="post-actions">
-                                <button class="like-button" onclick="toggleLike('${postId}', event)">
-                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                                </button>
-                                <button class="comment-button" onclick="showPostPage('${postId}')">
-                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                console.error('Error loading posts:', error);
-                postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات";
-            }
-        }
+        postsDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+            const post = doc.data();
+            const postId = doc.id;
+            postsDiv.innerHTML += `
+                <div class="post">
+                    <div onclick="showPostPage('${postId}')">
+                        <strong onclick="showProfilePage('${post.userId}')">${post.displayName || post.userEmail}</strong>
+                        <p>${post.content}</p>
+                        ${post.mediaBase64 ? post.mediaBase64.map(base64 => 
+                            base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview">` : `<video controls src="${base64}" class="media-preview"></video>`
+                        ).join('') : ''}
+                    </div>
+                    <div class="post-actions">
+                        <button class="like-button" onclick="toggleLike('${postId}', event)">
+                            <i class="fas fa-heart"></i> ${post.likes?.length || 0}
+                        </button>
+                        <button class="comment-button" onclick="showPostPage('${postId}')">
+                            <i class="fas fa-comment"></i> ${post.commentsCount || 0}
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    } catch (error) {
+        console.error('Error loading posts:', error);
+        postsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات";
+    }
+}
 
         // تحميل الرسائل الخاصة
         async function loadMessages() {
