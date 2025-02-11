@@ -438,15 +438,17 @@
 
         // دالة تسجيل الدخول
         window.login = async function () {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
-            }
-        };
+           const email = document.getElementById('emailInput').value;
+          const password = document.getElementById('passwordInput').value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        console.log("تم تسجيل الدخول بنجاح");
+       } catch (error) {
+        console.error("خطأ في تسجيل الدخول:", error);
+        document.getElementById('authError').style.display = 'block';
+        document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
+      }
+   };
 
         // دالة تسجيل حساب جديد
         window.register = async function () {
