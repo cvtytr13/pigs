@@ -4,14 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تطبيق المحادثة</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.18.0/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.18.0/firebase-auth-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.18.0/firebase-firestore-compat.min.js"></script>
+    <!-- تحديث إصدارات مكتبات Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-storage-compat.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background-color: #f0f2f5;
         }
         #loginContainer, #chatContainer {
@@ -56,7 +58,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            margin-right: 10px;
+            margin-left: 10px;
         }
         .message .content {
             flex-grow: 1;
@@ -97,25 +99,31 @@
             max-width: 100%;
             height: auto;
             border-radius: 8px;
+            margin-top: 5px;
         }
-        @media (max-width: 600px) {
-            #messagesContainer {
-                height: 300px;
-            }
-            .message {
-                max-width: 90%;
-            }
+        .error {
+            color: red;
+            margin: 5px 0;
+            display: none;
+        }
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <div id="loginContainer">
         <h2>تسجيل الدخول</h2>
-        <input type="email" id="email" placeholder="البريد الإلكتروني">
-        <input type="password" id="password" placeholder="كلمة المرور">
-        <button onclick="login()">تسجيل الدخول</button>
-        <button onclick="register()">إنشاء حساب جديد</button>
+        <div id="loginError" class="error"></div>
+        <input type="email" id="email" placeholder="البريد الإلكتروني" required>
+        <input type="password" id="password" placeholder="كلمة المرور" required>
+        <button onclick="login()" id="loginBtn">تسجيل الدخول</button>
+        <button onclick="register()" id="registerBtn">إنشاء حساب جديد</button>
+        <div id="loadingSpinner">جاري التحميل...</div>
     </div>
+    
     <div id="chatContainer">
         <h2>المحادثة</h2>
         <button onclick="logout()" style="float: left;">تسجيل الخروج</button>
@@ -139,11 +147,31 @@
             appId: "1:353675326399:web:1836fcb73faf9d0f39670a"
         };
 
-        // Initialize Firebase
+        // تهيئة Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        const storage = firebase.storage();
         let currentUser = null;
+
+        // إظهار رسالة الخطأ
+        function showError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // إخفاء رسالة الخطأ
+        function hideError() {
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        // إظهار/إخفاء مؤشر التحميل
+        function toggleLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+            document.getElementById('loginBtn').disabled = show;
+            document.getElementById('registerBtn').disabled = show;
+        }
 
         // مراقبة حالة تسجيل الدخول
         auth.onAuthStateChanged((user) => {
@@ -161,32 +189,66 @@
 
         // تسجيل الدخول
         async function login() {
+            hideError();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showError('يرجى ملء جميع الحقول');
+                return;
+            }
+
+            toggleLoading(true);
             try {
                 await auth.signInWithEmailAndPassword(email, password);
-                alert('تم تسجيل الدخول بنجاح!');
+                hideError();
             } catch (error) {
-                alert('خطأ في تسجيل الدخول: ' + error.message);
+                let errorMessage = 'خطأ في تسجيل الدخول';
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'البريد الإلكتروني غير مسجل';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'كلمة المرور غير صحيحة';
+                }
+                showError(errorMessage);
+            } finally {
+                toggleLoading(false);
             }
         }
 
         // إنشاء حساب جديد
         async function register() {
+            hideError();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showError('يرجى ملء جميع الحقول');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('يجب أن تكون كلمة المرور 6 أحرف على الأقل');
+                return;
+            }
+
+            toggleLoading(true);
             try {
                 await auth.createUserWithEmailAndPassword(email, password);
-                alert('تم إنشاء الحساب بنجاح!');
+                hideError();
             } catch (error) {
-                alert('خطأ في إنشاء الحساب: ' + error.message);
+                let errorMessage = 'خطأ في إنشاء الحساب';
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
+                }
+                showError(errorMessage);
+            } finally {
+                toggleLoading(false);
             }
         }
 
         // تسجيل الخروج
         function logout() {
             auth.signOut();
-            alert('تم تسجيل الخروج بنجاح!');
         }
 
         // إرسال رسالة
@@ -197,36 +259,30 @@
             const message = messageInput.value.trim();
             const file = mediaInput.files[0];
 
-            if ((message || file) && currentUser) {
-                try {
-                    let mediaUrl = null;
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = async (e) => {
-                            mediaUrl = e.target.result;
-                            await db.collection('messages').add({
-                                text: message,
-                                mediaUrl: mediaUrl,
-                                userId: currentUser.uid,
-                                userEmail: currentUser.email,
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            messageInput.value = '';
-                            mediaInput.value = '';
-                        };
-                        reader.readAsDataURL(file);
-                    } else {
-                        await db.collection('messages').add({
-                            text: message,
-                            userId: currentUser.uid,
-                            userEmail: currentUser.email,
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        messageInput.value = '';
-                    }
-                } catch (error) {
-                    alert('خطأ في إرسال الرسالة: ' + error.message);
+            if ((!message && !file) || !currentUser) return;
+
+            try {
+                let mediaUrl = null;
+                if (file) {
+                    const storageRef = storage.ref();
+                    const fileRef = storageRef.child(`media/${Date.now()}_${file.name}`);
+                    await fileRef.put(file);
+                    mediaUrl = await fileRef.getDownloadURL();
                 }
+
+                await db.collection('messages').add({
+                    text: message,
+                    mediaUrl: mediaUrl,
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                messageInput.value = '';
+                mediaInput.value = '';
+            } catch (error) {
+                console.error('خطأ في إرسال الرسالة:', error);
+                alert('حدث خطأ أثناء إرسال الرسالة');
             }
         }
 
@@ -236,63 +292,78 @@
                 .orderBy('timestamp', 'asc')
                 .onSnapshot((snapshot) => {
                     const messagesContainer = document.getElementById('messagesContainer');
-                    messagesContainer.innerHTML = '';
-
-                    snapshot.forEach((doc) => {
-                        const message = doc.data();
-                        const messageElement = document.createElement('div');
-                        messageElement.className = `message ${message.userId === currentUser.uid ? 'sent' : 'received'}`;
-                        messageElement.innerHTML = `
-                            <img src="https://via.placeholder.com/40" alt="User">
-                            <div class="content">
-                                ${message.mediaUrl ? 
-                                    (message.mediaUrl.startsWith('data:image') ? 
-                                        `<img src="${message.mediaUrl}" class="media">` : 
-                                        `<video controls src="${message.mediaUrl}" class="media"></video>`
-                                    : `${message.userEmail}: ${message.text}`
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const message = change.doc.data();
+                            const messageElement = document.createElement('div');
+                            messageElement.className = `message ${message.userId === currentUser.uid ? 'sent' : 'received'}`;
+                            
+                            let mediaContent = '';
+                            if (message.mediaUrl) {
+                                if (message.mediaUrl.includes('image')) {
+                                    mediaContent = `<img src="${message.mediaUrl}" class="media" alt="صورة">`;
+                                } else if (message.mediaUrl.includes('video')) {
+                                    mediaContent = `<video controls src="${message.mediaUrl}" class="media"></video>`;
                                 }
-                                <div class="time">${new Date(message.timestamp?.toDate()).toLocaleTimeString()}</div>
-                            </div>
-                        `;
-                        messagesContainer.appendChild(messageElement);
-                    });
+                            }
 
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            messageElement.innerHTML = `
+                                <img src="https://via.placeholder.com/40" alt="User">
+                                <div class="content">
+                                    <div>${message.userEmail}: ${message.text || ''}</div>
+                                    ${mediaContent}
+                                    <div class="time">${message.timestamp ? new Date(message.timestamp.toDate()).toLocaleTimeString() : ''}</div>
+                                </div>
+                            `;
+                            messagesContainer.appendChild(messageElement);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    });
                 });
         }
 
-        // نظام الإشعارات
+        // طلب إذن الإشعارات عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            if ('Notification' in window) {
+                Notification.requestPermission();
+            }
+        });
+
+        // إظهار الإشعارات
         function showNotification(message) {
-            if (Notification.permission === 'granted') {
+            if (Notification.permission === 'granted' && document.hidden) {
                 new Notification('رسالة جديدة', {
                     body: message,
                     icon: 'https://via.placeholder.com/50'
                 });
-            } else if (Notification.permission !== 'denied') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        new Notification('رسالة جديدة', {
-                            body: message,
-                            icon: 'https://via.placeholder.com/50'
-                        });
-                    }
-                });
             }
         }
 
-        // مراقبة الرسائل الجديدة
-        db.collection('messages')
-            .orderBy('timestamp', 'asc')
-            .onSnapshot((snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    if (change.type === 'added') {
-                        const message = change.doc.data();
-                        if (message.userId !== currentUser.uid) {
-                            showNotification(`رسالة جديدة من ${message.userEmail}: ${message.text}`);
-                        }
-                    }
-                });
-            });
+        // مراقبة الرسائل الجديدة للإشعارات
+        function setupMessageNotifications() {
+            if (currentUser) {
+                db.collection('messages')
+                    .orderBy('timestamp', 'desc')
+                    .limit(1)
+                    .onSnapshot((snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === 'added') {
+                                const message = change.doc.data();
+                                if (message.userId !== currentUser.uid) {
+                                    showNotification(`${message.userEmail}: ${message.text || 'أرسل وسائط'}`);
+                                }
+                            }
+                        });
+                    });
+            }
+        }
+
+        // تفعيل الإشعارات عند تسجيل الدخول
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                setupMessageNotifications();
+            }
+        });
     </script>
 </body>
 </html>
