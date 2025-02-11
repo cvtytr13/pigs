@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>منصة التواصل الاجتماعي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.7.0/dist/emoji-picker-element.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.11.0/dist/emoji-picker-element.min.css">
     <style>
         /* تحسينات CSS */
         body {
@@ -143,8 +143,6 @@
         }
         .emoji-picker {
             position: absolute;
-            bottom: 50px;
-            right: 20px;
             z-index: 1000;
         }
     </style>
@@ -236,7 +234,6 @@
             where,
             serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
-        import 'https://cdn.jsdelivr.net/npm/emoji-picker-element@1.7.0/dist/emoji-picker-element.min.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDZOs48fHG3weYUTxNgDUhf6qlf6XdiIp8",
@@ -438,17 +435,15 @@
 
         // دالة تسجيل الدخول
         window.login = async function () {
-           const email = document.getElementById('emailInput').value;
-          const password = document.getElementById('passwordInput').value;
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        console.log("تم تسجيل الدخول بنجاح");
-       } catch (error) {
-        console.error("خطأ في تسجيل الدخول:", error);
-        document.getElementById('authError').style.display = 'block';
-        document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
-      }
-   };
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                document.getElementById('authError').style.display = 'block';
+                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
+            }
+        };
 
         // دالة تسجيل حساب جديد
         window.register = async function () {
@@ -691,5 +686,6 @@
             }
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.11.0/dist/emoji-picker-element.min.js"></script>
 </body>
 </html>
