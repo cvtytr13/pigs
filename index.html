@@ -88,10 +88,10 @@
             color: red;
             display: none;
         }
-        .profile-section, .settings-section, .messages-section {
+        .profile-section, .settings-section, .messages-section, .post-page, .chat-page {
             display: none;
         }
-        .post-page, .message-page {
+        .post-page, .chat-page {
             padding: 20px;
             max-width: 800px;
             margin: 20px auto;
@@ -209,16 +209,40 @@
             <div id="messages"></div>
         </div>
 
-        <!-- قسم البروفايل والإعدادات -->
+        <!-- قسم البروفايل -->
         <div id="profileSection" class="profile-section">
             <h2>البروفايل</h2>
             <div id="profilePosts"></div>
         </div>
+
+        <!-- قسم الإعدادات -->
         <div id="settingsSection" class="settings-section">
             <h2>الإعدادات</h2>
             <input type="text" id="displayName" placeholder="الاسم المعروض">
             <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة">
             <button onclick="updateProfile()" class="button">تحديث البروفايل</button>
+        </div>
+
+        <!-- صفحة المنشور -->
+        <div id="postPage" class="post-page">
+            <h2 id="postPageTitle"></h2>
+            <div id="postPageContent"></div>
+            <div class="comments-section">
+                <h3>التعليقات</h3>
+                <div id="postComments"></div>
+                <textarea id="postCommentInput" class="comment-input" placeholder="أضف تعليقًا..."></textarea>
+                <button onclick="submitComment()" class="button">إرسال</button>
+            </div>
+        </div>
+
+        <!-- صفحة المحادثة -->
+        <div id="chatPage" class="chat-page">
+            <h2 id="chatPageTitle"></h2>
+            <div id="chatMessages"></div>
+            <div class="message-form">
+                <textarea id="chatMessageInput" class="message-input" rows="3" placeholder="اكتب رسالة..."></textarea>
+                <button onclick="sendChatMessage()" class="button">إرسال</button>
+            </div>
         </div>
     </div>
 
@@ -392,7 +416,7 @@
                     postsDiv.innerHTML += `
                         <div class="post">
                             <div onclick="showPostPage('${postId}')">
-                                <strong>${post.displayName || post.userEmail}</strong>
+                                <strong onclick="openChatPage('${post.userId}', event)">${post.displayName || post.userEmail}</strong>
                                 <p>${post.content}</p>
                                 ${post.mediaBase64 ? post.mediaBase64.map(base64 => 
                                     base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview" onclick="openFullscreenImage('${base64}')">` : `<video controls src="${base64}" class="media-preview"></video>`
@@ -415,10 +439,23 @@
             }
         }
 
-        // تحميل الرسائل الخاصة
-        async function loadMessages() {
-            const messagesDiv = document.getElementById('messages');
-            messagesDiv.innerHTML = "جاري التحميل...";
+        // فتح صفحة المحادثة
+        window.openChatPage = function(userId, event) {
+            event.stopPropagation(); // منع انتشار الحدث للعنصر الأب
+            currentRecipientId = userId;
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            document.getElementById('messagesSection').style.display = 'none';
+            document.getElementById('postPage').style.display = 'none';
+            document.getElementById('chatPage').style.display = 'block';
+            loadChatMessages(userId);
+        };
+
+        // تحميل رسائل المحادثة
+        async function loadChatMessages(userId) {
+            const chatMessagesDiv = document.getElementById('chatMessages');
+            chatMessagesDiv.innerHTML = "جاري التحميل...";
 
             const user = auth.currentUser;
             if (!user) return;
@@ -426,17 +463,18 @@
             try {
                 const q = query(
                     collection(db, 'messages'),
-                    where('senderId', '==', user.uid),
-                    orderBy('timestamp', 'desc')
+                    where('senderId', 'in', [user.uid, userId]),
+                    where('recipientId', 'in', [user.uid, userId]),
+                    orderBy('timestamp', 'asc')
                 );
                 const snapshot = await getDocs(q);
 
-                messagesDiv.innerHTML = '';
+                chatMessagesDiv.innerHTML = '';
                 snapshot.forEach(doc => {
                     const message = doc.data();
-                    messagesDiv.innerHTML += `
+                    chatMessagesDiv.innerHTML += `
                         <div class="message">
-                            <strong>إلى: ${message.recipientId}</strong>
+                            <strong>${message.senderId === user.uid ? 'أنت' : message.displayName || message.userEmail}</strong>
                             <p>${message.content}</p>
                             ${message.mediaBase64 ? message.mediaBase64.map(base64 => 
                                 base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview" onclick="openFullscreenImage('${base64}')">` : `<video controls src="${base64}" class="media-preview"></video>`
@@ -445,177 +483,63 @@
                     `;
                 });
             } catch (error) {
-                console.error('Error loading messages:', error);
-                messagesDiv.innerHTML = "حدث خطأ أثناء تحميل الرسائل";
+                console.error('Error loading chat messages:', error);
+                chatMessagesDiv.innerHTML = "حدث خطأ أثناء تحميل الرسائل";
             }
         }
 
-        // دالة فتح الصورة بحجم كامل
-        window.openFullscreenImage = function(src) {
-            const fullscreenImage = document.getElementById('fullscreenImage');
-            const fullscreenImageSrc = document.getElementById('fullscreenImageSrc');
-            fullscreenImageSrc.src = src;
-            fullscreenImage.style.display = 'flex';
-        };
+        // إرسال رسالة في المحادثة
+        window.sendChatMessage = async function() {
+            const content = document.getElementById('chatMessageInput').value.trim();
 
-        // دالة إغلاق الصورة بحجم كامل
-        document.getElementById('fullscreenImage').addEventListener('click', function() {
-            this.style.display = 'none';
-        });
+            if (!content) return;
 
-        // دالة تسجيل الدخول
-        window.login = async function () {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "بيانات تسجيل الدخول غير صحيحة";
-            }
-        };
-
-        // دالة تسجيل حساب جديد
-        window.register = async function () {
-            const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                document.getElementById('authError').style.display = 'block';
-                document.getElementById('authError').textContent = "حدث خطأ أثناء التسجيل";
-            }
-        };
-
-        // دالة تسجيل الخروج
-        window.logout = async function () {
-            try {
-                await signOut(auth);
-                window.location.reload(); // إعادة تحميل الصفحة بعد تسجيل الخروج
-            } catch (error) {
-                console.error('Error logging out:', error);
-            }
-        };
-
-        // دالة تحديث البروفايل
-        window.updateProfile = async function () {
             const user = auth.currentUser;
             if (!user) {
-                alert("يجب تسجيل الدخول أولاً");
+                alert('يجب تسجيل الدخول أولاً');
                 return;
             }
 
-            const displayName = document.getElementById('displayName').value;
-            const newPassword = document.getElementById('newPassword').value;
-
             try {
-                if (displayName) {
-                    await updateProfile(user, { displayName: displayName });
-                }
-                if (newPassword) {
-                    await updatePassword(user, newPassword);
-                }
-                alert("تم تحديث البروفايل بنجاح");
-            } catch (error) {
-                alert("حدث خطأ أثناء تحديث البروفايل");
-            }
-        };
-
-        // دالة عرض الصفحة الرئيسية
-        window.showHome = function () {
-            document.getElementById('contentSection').style.display = 'block';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-            document.getElementById('messagesSection').style.display = 'none';
-            loadPosts(); // تحميل المنشورات عند عرض الصفحة الرئيسية
-        };
-
-        // دالة عرض البروفايل
-        window.showProfile = function () {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'block';
-            document.getElementById('settingsSection').style.display = 'none';
-            document.getElementById('messagesSection').style.display = 'none';
-            const user = auth.currentUser;
-            if (user) {
-                loadProfilePosts(user.uid); // تحميل منشورات المستخدم
-            }
-        };
-
-        // دالة عرض الرسائل الخاصة
-        window.showMessages = function () {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-            document.getElementById('messagesSection').style.display = 'block';
-            loadMessages(); // تحميل الرسائل الخاصة
-            loadRecipients(); // تحميل قائمة المستخدمين لإرسال الرسائل
-        };
-
-        // دالة عرض الإعدادات
-        window.showSettings = function () {
-            document.getElementById('contentSection').style.display = 'none';
-            document.getElementById('profileSection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'block';
-            document.getElementById('messagesSection').style.display = 'none';
-        };
-
-        // دالة تحميل منشورات البروفايل
-        async function loadProfilePosts(userId) {
-            const profilePostsDiv = document.getElementById('profilePosts');
-            profilePostsDiv.innerHTML = "جاري التحميل...";
-            try {
-                const q = query(
-                    collection(db, 'posts'),
-                    where('userId', '==', userId),
-                    orderBy('timestamp', 'desc')
-                );
-                const snapshot = await getDocs(q);
-                profilePostsDiv.innerHTML = '';
-
-                snapshot.forEach((doc) => {
-                    const post = doc.data();
-                    const postId = doc.id;
-                    profilePostsDiv.innerHTML += `
-                        <div class="post">
-                            <div onclick="showPostPage('${postId}')">
-                                <strong>${post.displayName || post.userEmail}</strong>
-                                <p>${post.content}</p>
-                                ${post.mediaBase64 ? post.mediaBase64.map(base64 =>
-                                    base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview" onclick="openFullscreenImage('${base64}')">` : `<video controls src="${base64}" class="media-preview"></video>`
-                                ).join('') : ''}
-                            </div>
-                            <div class="post-actions">
-                                <button class="like-button" onclick="toggleLike('${postId}', event)">
-                                    <i class="fas fa-heart"></i> ${post.likes?.length || 0}
-                                </button>
-                                <button class="comment-button" onclick="showPostPage('${postId}')">
-                                    <i class="fas fa-comment"></i> ${post.commentsCount || 0}
-                                </button>
-                            </div>
-                        </div>`;
+                await addDoc(collection(db, 'messages'), {
+                    senderId: user.uid,
+                    recipientId: currentRecipientId,
+                    content: content,
+                    timestamp: serverTimestamp()
                 });
-            } catch (error) {
-                profilePostsDiv.innerHTML = "حدث خطأ أثناء تحميل المنشورات.";
-            }
-        }
 
-        // دالة تحميل قائمة المستخدمين لإرسال الرسائل
-        async function loadRecipients() {
-            const recipientSelect = document.getElementById('recipientSelect');
-            recipientSelect.innerHTML = '<option value="">اختر مستلمًا</option>';
-            try {
-                const q = query(collection(db, 'users'));
-                const snapshot = await getDocs(q);
-                snapshot.forEach((doc) => {
-                    const user = doc.data();
-                    if (user.uid !== auth.currentUser.uid) {
-                        recipientSelect.innerHTML += `<option value="${user.uid}">${user.displayName || user.email}</option>`;
-                    }
-                });
+                document.getElementById('chatMessageInput').value = '';
+                loadChatMessages(currentRecipientId);
             } catch (error) {
-                console.error('Error loading recipients:', error);
+                console.error('Error sending chat message:', error);
             }
+        };
+
+        // فتح صفحة المنشور
+        window.showPostPage = function(postId) {
+            currentPostId = postId;
+            document.getElementById('contentSection').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            document.getElementById('messagesSection').style.display = 'none';
+            document.getElementById('chatPage').style.display = 'none';
+            document.getElementById('postPage').style.display = 'block';
+            loadPostPage(postId);
+        };
+
+        // تحميل صفحة المنشور
+        async function loadPostPage(postId) {
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            const post = postDoc.data();
+
+            document.getElementById('postPageTitle').textContent = `منشور من ${post.displayName || post.userEmail}`;
+            document.getElementById('postPageContent').innerHTML = `
+                <p>${post.content}</p>
+                ${post.mediaBase64 ? post.mediaBase64.map(base64 => 
+                    base64.startsWith('data:image') ? `<img src="${base64}" class="media-preview" onclick="openFullscreenImage('${base64}')">` : `<video controls src="${base64}" class="media-preview"></video>`
+                ).join('') : ''}
+            `;
+            loadComments(postId);
         }
 
         // دالة إضافة تعليق
@@ -646,7 +570,7 @@
             }
         };
 
-        // دالة تحميل التعليقات
+        // تحميل التعليقات
         async function loadComments(postId) {
             const commentsDiv = document.getElementById('postComments');
             commentsDiv.innerHTML = "جاري تحميل التعليقات...";
@@ -712,6 +636,8 @@
                 document.getElementById('profileSection').style.display = 'none';
                 document.getElementById('settingsSection').style.display = 'none';
                 document.getElementById('messagesSection').style.display = 'none';
+                document.getElementById('postPage').style.display = 'none';
+                document.getElementById('chatPage').style.display = 'none';
                 document.getElementById('logoutButton').style.display = 'none';
             }
         });
