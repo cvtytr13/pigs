@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تفاصيل المنشور</title>
+</head>
+<body>
+  <div id="navbar">
+    <a href="home.html">الصفحة الرئيسية</a>
+    <a href="profile.html">البروفايل</a>
+    <a href="settings.html">الإعدادات</a>
+    <a href="users.html">جميع المستخدمين</a>
+  </div>
+
+  <div id="post-details">
+    <h2>تفاصيل المنشور</h2>
+    <div id="post-content"></div>
+    <button id="like-btn">إعجاب</button>
+    <textarea id="comment-input" placeholder="أضف تعليقًا..."></textarea>
+    <button id="comment-btn">تعليق</button>
+    <div id="comments-list"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
+      authDomain: "messge13.firebaseapp.com",
+      databaseURL: "https://messge13.firebaseio.com",
+      projectId: "messge13",
+      storageBucket: "messge13.firebasestorage.app",
+      messagingSenderId: "192460606316",
+      appId: "1:192460606316:web:2b6025c6a7777804654149"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const postContent = document.getElementById('post-content');
+    const likeBtn = document.getElementById('like-btn');
+    const commentInput = document.getElementById('comment-input');
+    const commentBtn = document.getElementById('comment-btn');
+    const commentsList = document.getElementById('comments-list');
+
+    // تحميل تفاصيل المنشور
+    const postId = new URLSearchParams(window.location.search).get('id');
+    if (postId) {
+      db.collection('posts').doc(postId).get().then((doc) => {
+        if (doc.exists) {
+          const post = doc.data();
+          postContent.innerHTML = `<p>${post.content}</p>`;
+        }
+      });
+    }
+
+    // إضافة تعليق
+    commentBtn.addEventListener('click', () => {
+      const comment = commentInput.value;
+      if (comment) {
+        db.collection('comments').add({
+          postId: postId,
+          userId: firebase.auth().currentUser.uid,
+          comment: comment,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+          commentInput.value = ""; // مسح حقل التعليق
+          loadComments(); // إعادة تحميل التعليقات
+        });
+      }
+    });
+
+    // تحميل التعليقات
+    function loadComments() {
+      commentsList.innerHTML = ""; // مسح القائمة الحالية
+      db.collection('comments').where('postId', '==', postId).get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          const comment = doc.data();
+          const commentElement = document.createElement('div');
+          commentElement.innerHTML = `<p>${comment.comment}</p>`;
+          commentsList.appendChild(commentElement);
+        });
+      });
+    }
+
+    loadComments();
+  </script>
+</body>
+</html>

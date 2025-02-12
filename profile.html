@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>البروفايل</title>
+</head>
+<body>
+  <div id="navbar">
+    <a href="home.html">الصفحة الرئيسية</a>
+    <a href="profile.html">البروفايل</a>
+    <a href="settings.html">الإعدادات</a>
+    <a href="users.html">جميع المستخدمين</a>
+  </div>
+
+  <div id="profile-info">
+    <h2>البروفايل</h2>
+    <p id="user-email"></p>
+  </div>
+
+  <div id="user-posts">
+    <h3>منشوراتي</h3>
+    <!-- هنا سيتم عرض منشورات المستخدم -->
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
+      authDomain: "messge13.firebaseapp.com",
+      databaseURL: "https://messge13.firebaseio.com",
+      projectId: "messge13",
+      storageBucket: "messge13.firebasestorage.app",
+      messagingSenderId: "192460606316",
+      appId: "1:192460606316:web:2b6025c6a7777804654149"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const userEmail = document.getElementById('user-email');
+    const userPosts = document.getElementById('user-posts');
+
+    // عرض معلومات المستخدم
+    const user = firebase.auth().currentUser;
+    if (user) {
+      userEmail.textContent = user.email;
+      loadUserPosts(user.uid);
+    }
+
+    // تحميل منشورات المستخدم
+    function loadUserPosts(userId) {
+      db.collection('posts').where('userId', '==', userId).get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          const post = doc.data();
+          const postElement = document.createElement('div');
+          postElement.innerHTML = `<p>${post.content}</p>`;
+          userPosts.appendChild(postElement);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

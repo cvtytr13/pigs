@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول</title>
+</head>
+<body>
+  <div id="auth-container">
+    <h1>تسجيل الدخول / إنشاء حساب</h1>
+    <input type="email" id="email" placeholder="البريد الإلكتروني">
+    <input type="password" id="password" placeholder="كلمة المرور">
+    <button id="login-btn">تسجيل الدخول</button>
+    <button id="signup-btn">إنشاء حساب</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
+      authDomain: "messge13.firebaseapp.com",
+      databaseURL: "https://messge13.firebaseio.com",
+      projectId: "messge13",
+      storageBucket: "messge13.firebasestorage.app",
+      messagingSenderId: "192460606316",
+      appId: "1:192460606316:web:2b6025c6a7777804654149"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const signupBtn = document.getElementById('signup-btn');
+
+    // تسجيل الدخول
+    loginBtn.addEventListener('click', () => {
+      firebase.auth().signInWithEmailAndPassword(email.value, password.value)
+        .then(() => {
+          window.location.href = "home.html"; // الانتقال إلى الصفحة الرئيسية
+        })
+        .catch((error) => {
+          alert("خطأ في تسجيل الدخول: " + error.message);
+        });
+    });
+
+    // إنشاء حساب
+    signupBtn.addEventListener('click', () => {
+      firebase.auth().createUserWithEmailAndPassword(email.value, password.value)
+        .then(() => {
+          window.location.href = "home.html"; // الانتقال إلى الصفحة الرئيسية
+        })
+        .catch((error) => {
+          alert("خطأ في إنشاء الحساب: " + error.message);
+        });
+    });
+  </script>
+</body>
+</html>

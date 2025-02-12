@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الإعدادات</title>
+</head>
+<body>
+  <div id="navbar">
+    <a href="home.html">الصفحة الرئيسية</a>
+    <a href="profile.html">البروفايل</a>
+    <a href="settings.html">الإعدادات</a>
+    <a href="users.html">جميع المستخدمين</a>
+  </div>
+
+  <div id="settings-container">
+    <h2>الإعدادات</h2>
+    <input type="password" id="new-password" placeholder="كلمة المرور الجديدة">
+    <button id="update-password-btn">تحديث كلمة المرور</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
+      authDomain: "messge13.firebaseapp.com",
+      databaseURL: "https://messge13.firebaseio.com",
+      projectId: "messge13",
+      storageBucket: "messge13.firebasestorage.app",
+      messagingSenderId: "192460606316",
+      appId: "1:192460606316:web:2b6025c6a7777804654149"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const newPassword = document.getElementById('new-password');
+    const updatePasswordBtn = document.getElementById('update-password-btn');
+
+    // تحديث كلمة المرور
+    updatePasswordBtn.addEventListener('click', () => {
+      const user = firebase.auth().currentUser;
+      if (user && newPassword.value) {
+        user.updatePassword(newPassword.value)
+          .then(() => {
+            alert("تم تحديث كلمة المرور بنجاح");
+          })
+          .catch((error) => {
+            alert("خطأ في تحديث كلمة المرور: " + error.message);
+          });
+      }
+    });
+  </script>
+</body>
+</html>
