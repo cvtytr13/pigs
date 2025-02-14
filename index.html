@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دردشة فورية</title>
     <script type="module">
+        // استيراد Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, setDoc, doc, onSnapshot, query, orderBy, updateDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
+        // 🔹 تهيئة Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
             authDomain: "messge13.firebaseapp.com",
@@ -24,42 +26,23 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
+        // تسجيل الدخول عبر جوجل
         document.getElementById("login-btn").addEventListener("click", () => {
-            signInWithPopup(auth, provider).then(async result => {
-                const user = result.user;
-                const userRef = doc(db, "users", user.uid);
-                const userData = await getDoc(userRef);
-                if (!userData.exists()) {
-                    await setDoc(userRef, {
-                        name: user.displayName,
-                        email: user.email,
-                        photo: user.photoURL || "",
-                        lastSeen: serverTimestamp(),
-                        online: true
-                    });
-                } else {
-                    await updateDoc(userRef, { online: true });
-                }
-            }).catch(error => alert("خطأ: " + error.message));
+            signInWithPopup(auth, provider).catch(error => alert("خطأ: " + error.message));
         });
 
-        document.getElementById("logout-btn").addEventListener("click", async () => {
-            if (auth.currentUser) {
-                await updateDoc(doc(db, "users", auth.currentUser.uid), {
-                    online: false,
-                    lastSeen: serverTimestamp()
-                });
-            }
+        // تسجيل الخروج
+        document.getElementById("logout-btn").addEventListener("click", () => {
             signOut(auth);
         });
 
-        onAuthStateChanged(auth, async user => {
+        // مراقبة حالة تسجيل الدخول
+        onAuthStateChanged(auth, user => {
             if (user) {
                 document.getElementById("login-btn").style.display = "none";
                 document.getElementById("logout-btn").style.display = "block";
                 document.getElementById("chat-box").style.display = "block";
                 document.getElementById("input-area").style.display = "block";
-                loadUsers();
             } else {
                 document.getElementById("login-btn").style.display = "block";
                 document.getElementById("logout-btn").style.display = "none";
@@ -68,33 +51,22 @@
             }
         });
 
-        async function loadUsers() {
-            onSnapshot(collection(db, "users"), snapshot => {
-                const userList = document.getElementById("user-list");
-                userList.innerHTML = "";
-                snapshot.forEach(doc => {
-                    const user = doc.data();
-                    const userDiv = document.createElement("div");
-                    userDiv.classList.add("user");
-                    userDiv.innerHTML = `<img src="${user.photo || 'default.jpg'}" class="avatar"> ${user.name} - ${user.online ? "متصل" : "آخر ظهور: " + new Date(user.lastSeen?.seconds * 1000).toLocaleString()}`;
-                    userList.appendChild(userDiv);
-                });
-            });
-        }
-
+        // إرسال رسالة
         document.getElementById("send-btn").addEventListener("click", async () => {
             const message = document.getElementById("message-input").value;
             if (message.trim() === "" || !auth.currentUser) return;
+
             await addDoc(collection(db, "messages"), {
                 text: message,
                 sender: auth.currentUser.displayName,
-                senderPhoto: auth.currentUser.photoURL || "",
                 uid: auth.currentUser.uid,
                 timestamp: serverTimestamp()
             });
+
             document.getElementById("message-input").value = "";
         });
 
+        // عرض الرسائل في الوقت الفعلي
         onSnapshot(query(collection(db, "messages"), orderBy("timestamp")), snapshot => {
             const chatBox = document.getElementById("chat-box");
             chatBox.innerHTML = "";
@@ -102,37 +74,21 @@
                 const data = doc.data();
                 const messageDiv = document.createElement("div");
                 messageDiv.classList.add("message");
-                messageDiv.innerHTML = `<img src="${data.senderPhoto}" class="avatar"> <b>${data.sender}:</b> ${data.text}`;
+                messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
+                messageDiv.innerText = `${data.sender}: ${data.text}`;
                 chatBox.appendChild(messageDiv);
             });
             chatBox.scrollTop = chatBox.scrollHeight;
         });
-
-        document.getElementById("image-upload").addEventListener("change", event => {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = async () => {
-                await addDoc(collection(db, "messages"), {
-                    text: "📷 صورة",
-                    image: reader.result,
-                    sender: auth.currentUser.displayName,
-                    senderPhoto: auth.currentUser.photoURL || "",
-                    uid: auth.currentUser.uid,
-                    timestamp: serverTimestamp()
-                });
-            };
-            reader.readAsDataURL(file);
-        });
-
     </script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; }
         #chat-box { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; height: 400px; overflow-y: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        .message { padding: 5px; margin: 5px; border-radius: 5px; display: flex; align-items: center; }
-        .avatar { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; }
+        .message { padding: 5px; margin: 5px; border-radius: 5px; display: inline-block; }
+        .sent { background: #d1ffd1; text-align: right; float: right; }
+        .received { background: #fff; text-align: left; float: left; }
         #message-input { width: 80%; padding: 8px; }
         button { padding: 8px; margin: 5px; cursor: pointer; }
-        .user { padding: 5px; margin: 5px; background: #fff; border-radius: 5px; display: flex; align-items: center; }
     </style>
 </head>
 <body>
@@ -140,15 +96,12 @@
     <h2>دردشة فورية</h2>
     <button id="login-btn">تسجيل الدخول عبر Google</button>
     <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
-
-    <div id="user-list"></div>
     
     <div id="chat-box" style="display:none;"></div>
 
     <div id="input-area" style="display:none;">
         <input type="text" id="message-input" placeholder="اكتب رسالة...">
         <button id="send-btn">إرسال</button>
-        <input type="file" id="image-upload">
     </div>
 
 </body>
