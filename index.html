@@ -340,9 +340,10 @@
 
         // المتغيرات العامة
         let currentUser = null;
-        let currentChat = null;
+        let unsubscribeMessages = null;
+        let unsubscribeUsers = null;
 
-        // نموذج تسجيل الدخول
+        // عرض واجهة تسجيل الدخول
         function showLoginForm() {
             const loginTemplate = `
                 <div class="form-container fade-in">
@@ -361,13 +362,13 @@
                 </div>
             `;
             document.getElementById('app').innerHTML = loginTemplate;
-            
+
             // معالجة تسجيل الدخول
             document.getElementById('login-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const email = document.getElementById('login-email').value;
                 const password = document.getElementById('login-password').value;
-                
+
                 auth.signInWithEmailAndPassword(email, password)
                     .catch((error) => {
                         const errorElement = document.getElementById('login-error');
@@ -380,7 +381,7 @@
             document.getElementById('btn-show-signup').addEventListener('click', showSignupForm);
         }
 
-        // نموذج إنشاء حساب
+        // عرض واجهة إنشاء حساب
         function showSignupForm() {
             const signupTemplate = `
                 <div class="form-container fade-in">
@@ -402,14 +403,14 @@
                 </div>
             `;
             document.getElementById('app').innerHTML = signupTemplate;
-            
+
             // معالجة إنشاء الحساب
             document.getElementById('signup-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const name = document.getElementById('signup-name').value;
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
-                
+
                 auth.createUserWithEmailAndPassword(email, password)
                     .then((userCredential) => {
                         return db.collection('users').doc(userCredential.user.uid).set({
@@ -429,23 +430,13 @@
             document.getElementById('btn-show-login').addEventListener('click', showLoginForm);
         }
 
-        // واجهة الدردشة
+        // عرض واجهة الدردشة
         function showChatInterface() {
             const chatTemplate = `
                 <div class="chat-container fade-in">
                     <div class="sidebar">
                         <div class="chat-list" id="chat-list">
-                            <!-- سيتم تحميل قائمة المحادثات هنا -->
-                            <div class="chat-item active">
-                                <div class="chat-avatar">A</div>
-                                <div class="chat-info">
-                                    <div class="chat-name">المحادثة العامة</div>
-                                    <div class="chat-preview">
-                                        <span class="online-indicator"></span>
-                                        متصل الآن
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- سيتم تحميل قائمة المستخدمين هنا -->
                         </div>
                     </div>
 
@@ -476,17 +467,9 @@
                         </div>
 
                         <!-- منطقة إدخال الرسائل -->
-                        <div class="chat-input-area">
-                            <button class="btn-icon" title="إضافة مرفق">
-                                <i class="fas fa-paperclip"></i>
-                            </button>
-                            <div class="input-wrapper">
-                                <input type="text" id="message-input" placeholder="اكتب رسالتك هنا..." />
-                                <button class="btn-icon emoji-btn" title="إضافة رمز تعبيري">
-                                    <i class="fas fa-smile"></i>
-                                </button>
-                            </div>
-                            <button class="btn-send" id="send-btn" title="إرسال">
+                        <div class="chat-input">
+                            <input type="text" id="message-input" class="input-message" placeholder="اكتب رسالتك هنا..." />
+                            <button class="btn-send" id="send-btn">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -494,6 +477,65 @@
                 </div>
             `;
             document.getElementById('app').innerHTML = chatTemplate;
+
+            // تحميل قائمة المستخدمين
+            loadUsers();
+
+            // إضافة مستمعي الأحداث
+            document.getElementById('send-btn').addEventListener('click', sendMessage);
+            document.getElementById('message-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        }
+
+        // تحميل قائمة المستخدمين
+        function loadUsers() {
+            const chatList = document.getElementById('chat-list');
+            unsubscribeUsers = db.collection('users').onSnapshot(snapshot => {
+                chatList.innerHTML = ''; // مسح القائمة الحالية
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    const userElement = document.createElement('div');
+                    userElement.className = 'chat-item';
+                    userElement.innerHTML = `
+                        <div class="chat-avatar">${user.name.charAt(0)}</div>
+                        <div class="chat-info">
+                            <div class="chat-name">${user.name}</div>
+                            <div class="chat-preview">
+                                <span class="online-indicator"></span>
+                                متصل الآن
+                            </div>
+                        </div>
+                    `;
+                    chatList.appendChild(userElement);
+                });
+            });
+        }
+
+        // إرسال رسالة
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            try {
+                await db.collection('messages').add({
+                    text: text,
+                    senderId: currentUser.uid,
+                    senderName: currentUser.displayName || currentUser.email,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'sent'
+                });
+
+                input.value = '';
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('حدث خطأ في إرسال الرسالة');
+            }
         }
 
         // مراقبة حالة المصادقة
@@ -506,57 +548,10 @@
             }
         });
 
-        // إرسال رسالة
-        async function sendMessage() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            
-            if (!text) return;
-            
-            try {
-                await db.collection('messages').add({
-                    text: text,
-                    senderId: currentUser.uid,
-                    senderName: currentUser.displayName || currentUser.email,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'sent'
-                });
-                
-                input.value = '';
-            } catch (error) {
-                console.error('Error sending message:', error);
-                alert('حدث خطأ في إرسال الرسالة');
-            }
-        }
-
-        // التمرير إلى آخر رسالة
-        function scrollToBottom() {
-            const messagesContainer = document.getElementById('messages-container');
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        // إضافة مستمعي الأحداث
-        document.addEventListener('click', (e) => {
-            if (e.target && e.target.id === 'send-btn') {
-                sendMessage();
-            }
-        });
-        
-        document.getElementById('message-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // معالجة حدث إغلاق النافذة
+        // تنظيف المستمعين عند إغلاق الصفحة
         window.addEventListener('beforeunload', () => {
-            if (currentUser) {
-                db.collection('users').doc(currentUser.uid).update({
-                    isOnline: false,
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
+            if (unsubscribeMessages) unsubscribeMessages();
+            if (unsubscribeUsers) unsubscribeUsers();
         });
     </script>
 </body>
