@@ -4,9 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دردشة فورية</title>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+    <script type="module">
+        // استيراد Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // 🔹 تهيئة Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
+            authDomain: "messge13.firebaseapp.com",
+            databaseURL: "https://messge13.firebaseio.com",
+            projectId: "messge13",
+            storageBucket: "messge13.firebasestorage.app",
+            messagingSenderId: "192460606316",
+            appId: "1:192460606316:web:2b6025c6a7777804654149"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // تسجيل الدخول عبر جوجل
+        document.getElementById("login-btn").addEventListener("click", () => {
+            signInWithPopup(auth, provider).catch(error => alert("خطأ: " + error.message));
+        });
+
+        // تسجيل الخروج
+        document.getElementById("logout-btn").addEventListener("click", () => {
+            signOut(auth);
+        });
+
+        // مراقبة حالة تسجيل الدخول
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                document.getElementById("login-btn").style.display = "none";
+                document.getElementById("logout-btn").style.display = "block";
+                document.getElementById("chat-box").style.display = "block";
+                document.getElementById("input-area").style.display = "block";
+            } else {
+                document.getElementById("login-btn").style.display = "block";
+                document.getElementById("logout-btn").style.display = "none";
+                document.getElementById("chat-box").style.display = "none";
+                document.getElementById("input-area").style.display = "none";
+            }
+        });
+
+        // إرسال رسالة
+        document.getElementById("send-btn").addEventListener("click", async () => {
+            const message = document.getElementById("message-input").value;
+            if (message.trim() === "" || !auth.currentUser) return;
+
+            await addDoc(collection(db, "messages"), {
+                text: message,
+                sender: auth.currentUser.displayName,
+                uid: auth.currentUser.uid,
+                timestamp: serverTimestamp()
+            });
+
+            document.getElementById("message-input").value = "";
+        });
+
+        // عرض الرسائل في الوقت الفعلي
+        onSnapshot(query(collection(db, "messages"), orderBy("timestamp")), snapshot => {
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML = "";
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const messageDiv = document.createElement("div");
+                messageDiv.classList.add("message");
+                messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
+                messageDiv.innerText = `${data.sender}: ${data.text}`;
+                chatBox.appendChild(messageDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    </script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; }
         #chat-box { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; height: 400px; overflow-y: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
@@ -29,72 +103,6 @@
         <input type="text" id="message-input" placeholder="اكتب رسالة...">
         <button id="send-btn">إرسال</button>
     </div>
-
-    <script>
-        // 🔹 تهيئة Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
-            authDomain: "messge13.firebaseapp.com",
-            databaseURL: "https://messge13.firebaseio.com",
-            projectId: "messge13",
-            storageBucket: "messge13.firebasestorage.app",
-            messagingSenderId: "192460606316",
-            appId: "1:192460606316:web:2b6025c6a7777804654149"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // 🔹 تسجيل الدخول
-        document.getElementById("login-btn").addEventListener("click", () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).then(() => {
-                document.getElementById("login-btn").style.display = "none";
-                document.getElementById("logout-btn").style.display = "block";
-                document.getElementById("chat-box").style.display = "block";
-                document.getElementById("input-area").style.display = "block";
-            });
-        });
-
-        // 🔹 تسجيل الخروج
-        document.getElementById("logout-btn").addEventListener("click", () => {
-            auth.signOut().then(() => {
-                document.getElementById("login-btn").style.display = "block";
-                document.getElementById("logout-btn").style.display = "none";
-                document.getElementById("chat-box").style.display = "none";
-                document.getElementById("input-area").style.display = "none";
-            });
-        });
-
-        // 🔹 إرسال رسالة
-        document.getElementById("send-btn").addEventListener("click", () => {
-            const message = document.getElementById("message-input").value;
-            if (message.trim() === "") return;
-            
-            db.collection("messages").add({
-                text: message,
-                sender: auth.currentUser.displayName,
-                uid: auth.currentUser.uid,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            document.getElementById("message-input").value = "";
-        });
-
-        // 🔹 عرض الرسائل في الوقت الفعلي
-        db.collection("messages").orderBy("timestamp").onSnapshot(snapshot => {
-            const chatBox = document.getElementById("chat-box");
-            chatBox.innerHTML = "";
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const messageDiv = document.createElement("div");
-                messageDiv.classList.add("message");
-                messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
-                messageDiv.innerText = `${data.sender}: ${data.text}`;
-                chatBox.appendChild(messageDiv);
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
-    </script>
 
 </body>
 </html>
