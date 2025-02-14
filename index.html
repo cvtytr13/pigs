@@ -1,330 +1,37 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق دردشة احترافي</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>دردشة فورية</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
     <style>
-        /* تنسيقات أساسية */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: #f0f2f5;
-            height: 100vh;
-            direction: rtl;
-        }
-
-        /* شريط التنقل */
-        .navbar {
-            background: #ffffff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 1rem;
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-        }
-
-        .navbar-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #1a73e8;
-        }
-
-        .nav-links a {
-            color: #666;
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: #1a73e8;
-        }
-
-        /* تصميم النموذج */
-        .form-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 2rem;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .form-title {
-            text-align: center;
-            color: #1a73e8;
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-
-        .form-control:focus {
-            border-color: #1a73e8;
-            outline: none;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 0.75rem;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .btn-primary {
-            background-color: #1a73e8;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #1557b0;
-        }
-
-        .btn-secondary {
-            background-color: #f8f9fa;
-            color: #1a73e8;
-            margin-top: 0.5rem;
-        }
-
-        .btn-secondary:hover {
-            background-color: #e9ecef;
-        }
-
-        /* تصميم صفحة الدردشة */
-        .chat-container {
-            max-width: 1200px;
-            margin: 80px auto 0;
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            height: calc(100vh - 100px);
-        }
-
-        .sidebar {
-            border-left: 1px solid #ddd;
-            background: #f8f9fa;
-        }
-
-        .chat-list {
-            padding: 1rem;
-        }
-
-        .chat-item {
-            padding: 0.75rem;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-
-        .chat-item:hover {
-            background-color: #e9ecef;
-        }
-
-        .chat-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #1a73e8;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 0.75rem;
-        }
-
-        .chat-info {
-            flex: 1;
-        }
-
-        .chat-name {
-            font-weight: 500;
-            margin-bottom: 0.25rem;
-        }
-
-        .chat-preview {
-            color: #666;
-            font-size: 0.875rem;
-        }
-
-        .chat-main {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        .chat-header {
-            padding: 1rem;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 1rem;
-            overflow-y: auto;
-            background: #f0f2f5;
-        }
-
-        .message {
-            margin-bottom: 1rem;
-            max-width: 70%;
-        }
-
-        .message.sent {
-            margin-right: auto;
-        }
-
-        .message.received {
-            margin-left: auto;
-        }
-
-        .message-content {
-            padding: 0.75rem;
-            border-radius: 8px;
-            position: relative;
-        }
-
-        .sent .message-content {
-            background: #e3f2fd;
-            color: #000;
-        }
-
-        .received .message-content {
-            background: #1a73e8;
-            color: white;
-        }
-
-        .message-time {
-            font-size: 0.75rem;
-            color: #666;
-            margin-top: 0.25rem;
-        }
-
-        .chat-input {
-            padding: 1rem;
-            border-top: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-        }
-
-        .input-message {
-            flex: 1;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            margin-left: 1rem;
-            font-size: 1rem;
-        }
-
-        .btn-send {
-            background: #1a73e8;
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .btn-send:hover {
-            background-color: #1557b0;
-        }
-
-        /* الرسائل التنبيهية */
-        .alert {
-            padding: 0.75rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            color: white;
-        }
-
-        .alert-error {
-            background-color: #dc3545;
-        }
-
-        .alert-success {
-            background-color: #28a745;
-        }
-
-        /* المؤشرات */
-        .online-indicator {
-            width: 8px;
-            height: 8px;
-            background: #28a745;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-
-        /* الرسوم المتحركة */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.3s ease-in;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; }
+        #chat-box { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; height: 400px; overflow-y: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        .message { padding: 5px; margin: 5px; border-radius: 5px; display: inline-block; }
+        .sent { background: #d1ffd1; text-align: right; float: right; }
+        .received { background: #fff; text-align: left; float: left; }
+        #message-input { width: 80%; padding: 8px; }
+        button { padding: 8px; margin: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-content">
-            <div class="logo">تطبيق الدردشة</div>
-            <div class="nav-links">
-                <a href="#" id="link-profile"><i class="fas fa-user"></i> الملف الشخصي</a>
-                <a href="#" id="link-logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
-            </div>
-        </div>
-    </nav>
 
-    <div id="app">
-        <!-- سيتم تحميل المحتوى هنا -->
+    <h2>دردشة فورية</h2>
+    <button id="login-btn">تسجيل الدخول عبر Google</button>
+    <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
+    
+    <div id="chat-box" style="display:none;"></div>
+
+    <div id="input-area" style="display:none;">
+        <input type="text" id="message-input" placeholder="اكتب رسالة...">
+        <button id="send-btn">إرسال</button>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
     <script>
-        // تهيئة Firebase
+        // 🔹 تهيئة Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
             authDomain: "messge13.firebaseapp.com",
@@ -335,224 +42,59 @@
             appId: "1:192460606316:web:2b6025c6a7777804654149"
         };
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
         const auth = firebase.auth();
+        const db = firebase.firestore();
 
-        // المتغيرات العامة
-        let currentUser = null;
-        let unsubscribeMessages = null;
-        let unsubscribeUsers = null;
-
-        // عرض واجهة تسجيل الدخول
-        function showLoginForm() {
-            const loginTemplate = `
-                <div class="form-container fade-in">
-                    <h2 class="form-title">تسجيل الدخول</h2>
-                    <div id="login-error" class="alert alert-error" style="display: none;"></div>
-                    <form id="login-form">
-                        <div class="form-group">
-                            <input type="email" class="form-control" id="login-email" placeholder="البريد الإلكتروني" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="password" class="form-control" id="login-password" placeholder="كلمة المرور" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
-                        <button type="button" class="btn btn-secondary" id="btn-show-signup">إنشاء حساب جديد</button>
-                    </form>
-                </div>
-            `;
-            document.getElementById('app').innerHTML = loginTemplate;
-
-            // معالجة تسجيل الدخول
-            document.getElementById('login-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-
-                auth.signInWithEmailAndPassword(email, password)
-                    .catch((error) => {
-                        const errorElement = document.getElementById('login-error');
-                        errorElement.textContent = error.message;
-                        errorElement.style.display = 'block';
-                    });
+        // 🔹 تسجيل الدخول
+        document.getElementById("login-btn").addEventListener("click", () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then(() => {
+                document.getElementById("login-btn").style.display = "none";
+                document.getElementById("logout-btn").style.display = "block";
+                document.getElementById("chat-box").style.display = "block";
+                document.getElementById("input-area").style.display = "block";
             });
-
-            // التبديل إلى نموذج إنشاء الحساب
-            document.getElementById('btn-show-signup').addEventListener('click', showSignupForm);
-        }
-
-        // عرض واجهة إنشاء حساب
-        function showSignupForm() {
-            const signupTemplate = `
-                <div class="form-container fade-in">
-                    <h2 class="form-title">إنشاء حساب جديد</h2>
-                    <div id="signup-error" class="alert alert-error" style="display: none;"></div>
-                    <form id="signup-form">
-                        <div class="form-group">
-                            <input type="text" class="form-control" id="signup-name" placeholder="الاسم" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="email" class="form-control" id="signup-email" placeholder="البريد الإلكتروني" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="password" class="form-control" id="signup-password" placeholder="كلمة المرور" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">إنشاء حساب</button>
-                        <button type="button" class="btn btn-secondary" id="btn-show-login">العودة لتسجيل الدخول</button>
-                    </form>
-                </div>
-            `;
-            document.getElementById('app').innerHTML = signupTemplate;
-
-            // معالجة إنشاء الحساب
-            document.getElementById('signup-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const name = document.getElementById('signup-name').value;
-                const email = document.getElementById('signup-email').value;
-                const password = document.getElementById('signup-password').value;
-
-                auth.createUserWithEmailAndPassword(email, password)
-                    .then((userCredential) => {
-                        return db.collection('users').doc(userCredential.user.uid).set({
-                            name: name,
-                            email: email,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    })
-                    .catch((error) => {
-                        const errorElement = document.getElementById('signup-error');
-                        errorElement.textContent = error.message;
-                        errorElement.style.display = 'block';
-                    });
-            });
-
-            // العودة إلى نموذج تسجيل الدخول
-            document.getElementById('btn-show-login').addEventListener('click', showLoginForm);
-        }
-
-        // عرض واجهة الدردشة
-        function showChatInterface() {
-            const chatTemplate = `
-                <div class="chat-container fade-in">
-                    <div class="sidebar">
-                        <div class="chat-list" id="chat-list">
-                            <!-- سيتم تحميل قائمة المستخدمين هنا -->
-                        </div>
-                    </div>
-
-                    <!-- القسم الرئيسي للدردشة -->
-                    <div class="chat-main">
-                        <!-- رأس المحادثة -->
-                        <div class="chat-header">
-                            <div class="user-info">
-                                <div class="chat-avatar">A</div>
-                                <div class="chat-title">
-                                    <h3>المحادثة العامة</h3>
-                                    <span class="status">متصل الآن</span>
-                                </div>
-                            </div>
-                            <div class="chat-actions">
-                                <button class="btn-icon" title="البحث">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                                <button class="btn-icon" title="المزيد">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- منطقة عرض الرسائل -->
-                        <div class="chat-messages" id="messages-container">
-                            <!-- ستتم إضافة الرسائل هنا ديناميكياً -->
-                        </div>
-
-                        <!-- منطقة إدخال الرسائل -->
-                        <div class="chat-input">
-                            <input type="text" id="message-input" class="input-message" placeholder="اكتب رسالتك هنا..." />
-                            <button class="btn-send" id="send-btn">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.getElementById('app').innerHTML = chatTemplate;
-
-            // تحميل قائمة المستخدمين
-            loadUsers();
-
-            // إضافة مستمعي الأحداث
-            document.getElementById('send-btn').addEventListener('click', sendMessage);
-            document.getElementById('message-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-        }
-
-        // تحميل قائمة المستخدمين
-        function loadUsers() {
-            const chatList = document.getElementById('chat-list');
-            unsubscribeUsers = db.collection('users').onSnapshot(snapshot => {
-                chatList.innerHTML = ''; // مسح القائمة الحالية
-                snapshot.forEach(doc => {
-                    const user = doc.data();
-                    const userElement = document.createElement('div');
-                    userElement.className = 'chat-item';
-                    userElement.innerHTML = `
-                        <div class="chat-avatar">${user.name.charAt(0)}</div>
-                        <div class="chat-info">
-                            <div class="chat-name">${user.name}</div>
-                            <div class="chat-preview">
-                                <span class="online-indicator"></span>
-                                متصل الآن
-                            </div>
-                        </div>
-                    `;
-                    chatList.appendChild(userElement);
-                });
-            });
-        }
-
-        // إرسال رسالة
-        async function sendMessage() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-
-            if (!text) return;
-
-            try {
-                await db.collection('messages').add({
-                    text: text,
-                    senderId: currentUser.uid,
-                    senderName: currentUser.displayName || currentUser.email,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'sent'
-                });
-
-                input.value = '';
-            } catch (error) {
-                console.error('Error sending message:', error);
-                alert('حدث خطأ في إرسال الرسالة');
-            }
-        }
-
-        // مراقبة حالة المصادقة
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUser = user;
-                showChatInterface();
-            } else {
-                showLoginForm();
-            }
         });
 
-        // تنظيف المستمعين عند إغلاق الصفحة
-        window.addEventListener('beforeunload', () => {
-            if (unsubscribeMessages) unsubscribeMessages();
-            if (unsubscribeUsers) unsubscribeUsers();
+        // 🔹 تسجيل الخروج
+        document.getElementById("logout-btn").addEventListener("click", () => {
+            auth.signOut().then(() => {
+                document.getElementById("login-btn").style.display = "block";
+                document.getElementById("logout-btn").style.display = "none";
+                document.getElementById("chat-box").style.display = "none";
+                document.getElementById("input-area").style.display = "none";
+            });
+        });
+
+        // 🔹 إرسال رسالة
+        document.getElementById("send-btn").addEventListener("click", () => {
+            const message = document.getElementById("message-input").value;
+            if (message.trim() === "") return;
+            
+            db.collection("messages").add({
+                text: message,
+                sender: auth.currentUser.displayName,
+                uid: auth.currentUser.uid,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            document.getElementById("message-input").value = "";
+        });
+
+        // 🔹 عرض الرسائل في الوقت الفعلي
+        db.collection("messages").orderBy("timestamp").onSnapshot(snapshot => {
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML = "";
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const messageDiv = document.createElement("div");
+                messageDiv.classList.add("message");
+                messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
+                messageDiv.innerText = `${data.sender}: ${data.text}`;
+                chatBox.appendChild(messageDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
         });
     </script>
+
 </body>
 </html>
