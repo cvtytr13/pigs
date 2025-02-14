@@ -3,29 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>الصفحة الرئيسية</title>
+  <title>تطبيق ويب</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    #navbar { background: #333; padding: 10px; }
+    #navbar a { color: white; margin: 0 10px; text-decoration: none; }
+    #navbar a:hover { text-decoration: underline; }
+    #content { padding: 20px; }
+    textarea { width: 100%; height: 100px; }
+    .post { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+  </style>
 </head>
 <body>
   <div id="navbar">
-    <a href="home.html">الصفحة الرئيسية</a>
-    <a href="profile.html">البروفايل</a>
-    <a href="settings.html">الإعدادات</a>
-    <a href="users.html">جميع المستخدمين</a>
+    <a href="#home">الصفحة الرئيسية</a>
+    <a href="#profile">البروفايل</a>
+    <a href="#settings">الإعدادات</a>
+    <a href="#users">جميع المستخدمين</a>
+    <a href="#login">تسجيل الدخول</a>
   </div>
 
-  <div id="post-container">
-    <textarea id="post-content" placeholder="اكتب منشورًا..."></textarea>
-    <button id="post-btn">نشر</button>
-  </div>
-
-  <div id="posts-list">
-    <!-- هنا سيتم عرض المنشورات -->
+  <div id="content">
+    <!-- سيتم تحميل المحتوى هنا -->
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
   <script>
+    // تهيئة Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
       authDomain: "messge13.firebaseapp.com",
@@ -38,42 +44,289 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const postContent = document.getElementById('post-content');
-    const postBtn = document.getElementById('post-btn');
-    const postsList = document.getElementById('posts-list');
+    // متغيرات عامة
+    let currentUser = null;
 
-    // نشر منشور جديد
-    postBtn.addEventListener('click', () => {
-      const content = postContent.value;
-      const user = firebase.auth().currentUser;
+    // توجيه الصفحات
+    const routes = {
+      '#home': homePage,
+      '#profile': profilePage,
+      '#settings': settingsPage,
+      '#users': usersPage,
+      '#login': loginPage,
+      '#post': postPage,
+      '#chat': chatPage
+    };
 
-      if (user && content) {
-        db.collection('posts').add({
-          userId: user.uid,
-          content: content,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(() => {
-          postContent.value = ""; // مسح حقل النص
-          loadPosts(); // إعادة تحميل المنشورات
-        });
-      }
-    });
+    // تحميل الصفحة بناءً على الرابط
+    function loadPage() {
+      const hash = window.location.hash || '#home';
+      const pageFunction = routes[hash];
+      if (pageFunction) pageFunction();
+    }
 
-    // تحميل المنشورات
-    function loadPosts() {
-      postsList.innerHTML = ""; // مسح القائمة الحالية
-      db.collection('posts').orderBy('timestamp', 'desc').get().then((querySnapshot) => {
-        querySnapshot.forEach((doc) => {
-          const post = doc.data();
-          const postElement = document.createElement('div');
-          postElement.innerHTML = `<p>${post.content}</p>`;
-          postsList.appendChild(postElement);
-        });
+    // صفحة تسجيل الدخول
+    function loginPage() {
+      const content = `
+        <h1>تسجيل الدخول / إنشاء حساب</h1>
+        <input type="email" id="email" placeholder="البريد الإلكتروني">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button id="login-btn">تسجيل الدخول</button>
+        <button id="signup-btn">إنشاء حساب</button>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      document.getElementById('login-btn').addEventListener('click', () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        firebase.auth().signInWithEmailAndPassword(email, password)
+          .then(() => {
+            window.location.hash = '#home';
+          })
+          .catch((error) => {
+            alert("خطأ في تسجيل الدخول: " + error.message);
+          });
+      });
+
+      document.getElementById('signup-btn').addEventListener('click', () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        firebase.auth().createUserWithEmailAndPassword(email, password)
+          .then(() => {
+            window.location.hash = '#home';
+          })
+          .catch((error) => {
+            alert("خطأ في إنشاء الحساب: " + error.message);
+          });
       });
     }
 
-    // تحميل المنشورات عند فتح الصفحة
-    loadPosts();
+    // صفحة الرئيسية
+    function homePage() {
+      const content = `
+        <h1>الصفحة الرئيسية</h1>
+        <textarea id="post-content" placeholder="اكتب منشورًا..."></textarea>
+        <button id="post-btn">نشر</button>
+        <div id="posts-list"></div>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      document.getElementById('post-btn').addEventListener('click', () => {
+        const content = document.getElementById('post-content').value;
+        if (content) {
+          db.collection('posts').add({
+            userId: currentUser.uid,
+            content: content,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(() => {
+            loadPosts();
+          });
+        }
+      });
+
+      function loadPosts() {
+        db.collection('posts').orderBy('timestamp', 'desc').get().then((querySnapshot) => {
+          const postsList = document.getElementById('posts-list');
+          postsList.innerHTML = '';
+          querySnapshot.forEach((doc) => {
+            const post = doc.data();
+            const postElement = document.createElement('div');
+            postElement.className = 'post';
+            postElement.innerHTML = `
+              <p>${post.content}</p>
+              <a href="#post?id=${doc.id}">عرض التفاصيل</a>
+            `;
+            postsList.appendChild(postElement);
+          });
+        });
+      }
+
+      loadPosts();
+    }
+
+    // صفحة البروفايل
+    function profilePage() {
+      const content = `
+        <h1>البروفايل</h1>
+        <p>البريد الإلكتروني: ${currentUser.email}</p>
+        <div id="user-posts"></div>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      function loadUserPosts() {
+        db.collection('posts').where('userId', '==', currentUser.uid).get().then((querySnapshot) => {
+          const userPosts = document.getElementById('user-posts');
+          userPosts.innerHTML = '';
+          querySnapshot.forEach((doc) => {
+            const post = doc.data();
+            const postElement = document.createElement('div');
+            postElement.className = 'post';
+            postElement.innerHTML = `<p>${post.content}</p>`;
+            userPosts.appendChild(postElement);
+          });
+        });
+      }
+
+      loadUserPosts();
+    }
+
+    // صفحة الإعدادات
+    function settingsPage() {
+      const content = `
+        <h1>الإعدادات</h1>
+        <input type="password" id="new-password" placeholder="كلمة المرور الجديدة">
+        <button id="update-password-btn">تحديث كلمة المرور</button>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      document.getElementById('update-password-btn').addEventListener('click', () => {
+        const newPassword = document.getElementById('new-password').value;
+        if (newPassword) {
+          currentUser.updatePassword(newPassword)
+            .then(() => {
+              alert("تم تحديث كلمة المرور بنجاح");
+            })
+            .catch((error) => {
+              alert("خطأ في تحديث كلمة المرور: " + error.message);
+            });
+        }
+      });
+    }
+
+    // صفحة جميع المستخدمين
+    function usersPage() {
+      const content = `
+        <h1>جميع المستخدمين</h1>
+        <div id="users-list"></div>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      function loadUsers() {
+        db.collection('users').get().then((querySnapshot) => {
+          const usersList = document.getElementById('users-list');
+          usersList.innerHTML = '';
+          querySnapshot.forEach((doc) => {
+            const user = doc.data();
+            const userElement = document.createElement('div');
+            userElement.innerHTML = `<p>${user.email}</p>`;
+            usersList.appendChild(userElement);
+          });
+        });
+      }
+
+      loadUsers();
+    }
+
+    // صفحة تفاصيل المنشور
+    function postPage() {
+      const postId = new URLSearchParams(window.location.hash.split('?')[1]).get('id');
+      const content = `
+        <h1>تفاصيل المنشور</h1>
+        <div id="post-details"></div>
+        <textarea id="comment-input" placeholder="أضف تعليقًا..."></textarea>
+        <button id="comment-btn">تعليق</button>
+        <div id="comments-list"></div>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      function loadPost() {
+        db.collection('posts').doc(postId).get().then((doc) => {
+          if (doc.exists) {
+            const post = doc.data();
+            const postDetails = document.getElementById('post-details');
+            postDetails.innerHTML = `<p>${post.content}</p>`;
+          }
+        });
+      }
+
+      function loadComments() {
+        db.collection('comments').where('postId', '==', postId).get().then((querySnapshot) => {
+          const commentsList = document.getElementById('comments-list');
+          commentsList.innerHTML = '';
+          querySnapshot.forEach((doc) => {
+            const comment = doc.data();
+            const commentElement = document.createElement('div');
+            commentElement.innerHTML = `<p>${comment.comment}</p>`;
+            commentsList.appendChild(commentElement);
+          });
+        });
+      }
+
+      document.getElementById('comment-btn').addEventListener('click', () => {
+        const comment = document.getElementById('comment-input').value;
+        if (comment) {
+          db.collection('comments').add({
+            postId: postId,
+            userId: currentUser.uid,
+            comment: comment,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(() => {
+            loadComments();
+          });
+        }
+      });
+
+      loadPost();
+      loadComments();
+    }
+
+    // صفحة المحادثة
+    function chatPage() {
+      const content = `
+        <h1>المحادثة</h1>
+        <div id="messages-list"></div>
+        <input type="text" id="message-input" placeholder="اكتب رسالة...">
+        <button id="send-btn">إرسال</button>
+      `;
+      document.getElementById('content').innerHTML = content;
+
+      function loadMessages() {
+        db.collection('messages')
+          .where('senderId', 'in', [currentUser.uid, "USER_ID"]) // استبدل بمعرف المستخدم المستقبل
+          .orderBy('timestamp', 'asc')
+          .get()
+          .then((querySnapshot) => {
+            const messagesList = document.getElementById('messages-list');
+            messagesList.innerHTML = '';
+            querySnapshot.forEach((doc) => {
+              const message = doc.data();
+              const messageElement = document.createElement('div');
+              messageElement.innerHTML = `<p>${message.message}</p>`;
+              messagesList.appendChild(messageElement);
+            });
+          });
+      }
+
+      document.getElementById('send-btn').addEventListener('click', () => {
+        const message = document.getElementById('message-input').value;
+        if (message) {
+          db.collection('messages').add({
+            senderId: currentUser.uid,
+            receiverId: "USER_ID", // استبدل بمعرف المستخدم المستقبل
+            message: message,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(() => {
+            loadMessages();
+          });
+        }
+      });
+
+      loadMessages();
+    }
+
+    // إدارة حالة المستخدم
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        currentUser = user;
+        loadPage();
+      } else {
+        window.location.hash = '#login';
+      }
+    });
+
+    // تحميل الصفحة عند تغيير الرابط
+    window.addEventListener('hashchange', loadPage);
+    loadPage();
   </script>
 </body>
 </html>
