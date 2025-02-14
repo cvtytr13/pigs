@@ -51,19 +51,38 @@
             }
         });
 
+        // إرسال رسالة عند الضغط على Enter
+        document.getElementById("message-input").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault(); // منع السلوك الافتراضي (إرسال النموذج)
+                document.getElementById("send-btn").click(); // تشغيل حدث النقر على زر الإرسال
+            }
+        });
+
         // إرسال رسالة
         document.getElementById("send-btn").addEventListener("click", async () => {
             const message = document.getElementById("message-input").value;
             if (message.trim() === "" || !auth.currentUser) return;
 
-            await addDoc(collection(db, "messages"), {
-                text: message,
-                sender: auth.currentUser.displayName,
-                uid: auth.currentUser.uid,
-                timestamp: serverTimestamp()
-            });
+            // إضافة مؤشر تحميل
+            const sendButton = document.getElementById("send-btn");
+            sendButton.disabled = true;
+            sendButton.innerText = "جاري الإرسال...";
 
-            document.getElementById("message-input").value = "";
+            try {
+                await addDoc(collection(db, "messages"), {
+                    text: message,
+                    sender: auth.currentUser.displayName,
+                    uid: auth.currentUser.uid,
+                    timestamp: serverTimestamp()
+                });
+                document.getElementById("message-input").value = ""; // مسح حقل الإدخال
+            } catch (error) {
+                alert("خطأ في إرسال الرسالة: " + error.message);
+            } finally {
+                sendButton.disabled = false;
+                sendButton.innerText = "إرسال"; // إعادة تعيين نص الزر
+            }
         });
 
         // عرض الرسائل في الوقت الفعلي
@@ -75,20 +94,85 @@
                 const messageDiv = document.createElement("div");
                 messageDiv.classList.add("message");
                 messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
-                messageDiv.innerText = `${data.sender}: ${data.text}`;
+
+                // إضافة صورة المستخدم (إذا كانت متاحة)
+                const userPhoto = data.uid === auth.currentUser?.uid ? auth.currentUser.photoURL : "https://via.placeholder.com/30";
+                messageDiv.innerHTML = `
+                    <img src="${userPhoto}" alt="صورة المستخدم" class="user-photo">
+                    <div class="message-content">
+                        <strong>${data.sender}</strong>: ${data.text}
+                    </div>
+                `;
                 chatBox.appendChild(messageDiv);
             });
-            chatBox.scrollTop = chatBox.scrollHeight;
+            chatBox.scrollTop = chatBox.scrollHeight; // التمرير إلى أحدث رسالة
         });
     </script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; }
-        #chat-box { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; height: 400px; overflow-y: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        .message { padding: 5px; margin: 5px; border-radius: 5px; display: inline-block; }
-        .sent { background: #d1ffd1; text-align: right; float: right; }
-        .received { background: #fff; text-align: left; float: left; }
-        #message-input { width: 80%; padding: 8px; }
-        button { padding: 8px; margin: 5px; cursor: pointer; }
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background: #f3f3f3; 
+            margin: 0; 
+            padding: 0; 
+        }
+        #chat-box { 
+            width: 90%; 
+            max-width: 500px; 
+            margin: 20px auto; 
+            background: white; 
+            padding: 10px; 
+            height: 400px; 
+            overflow-y: auto; 
+            border-radius: 10px; 
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+        }
+        .message { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 10px; 
+            display: flex; 
+            align-items: center; 
+            max-width: 80%; 
+        }
+        .sent { 
+            background: #d1ffd1; 
+            margin-left: auto; 
+            flex-direction: row-reverse; 
+        }
+        .received { 
+            background: #fff; 
+            margin-right: auto; 
+        }
+        .user-photo { 
+            width: 30px; 
+            height: 30px; 
+            border-radius: 50%; 
+            margin: 0 10px; 
+        }
+        .message-content { 
+            padding: 5px; 
+        }
+        #message-input { 
+            width: calc(80% - 20px); 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 5px; 
+            background: #007bff; 
+            color: white; 
+        }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+        }
     </style>
 </head>
 <body>
