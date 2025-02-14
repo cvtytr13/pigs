@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دردشة.. فورية</title>
+    <title>دردشة فورية</title>
     <script type="module">
         // استيراد Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
@@ -28,9 +28,11 @@
 
         // تسجيل الدخول عبر جوجل
         document.getElementById("login-btn").addEventListener("click", async () => {
+            console.log("محاولة تسجيل الدخول...");
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
+                console.log("تم تسجيل الدخول بنجاح:", user);
 
                 // حفظ بيانات المستخدم في Firestore
                 await setDoc(doc(db, "users", user.uid), {
@@ -40,6 +42,7 @@
                     isOnline: true
                 });
             } catch (error) {
+                console.error("خطأ في تسجيل الدخول:", error);
                 alert("خطأ في تسجيل الدخول: " + error.message);
             }
         });
@@ -52,7 +55,9 @@
                     lastSeen: serverTimestamp()
                 });
                 await signOut(auth);
+                console.log("تم تسجيل الخروج بنجاح");
             } catch (error) {
+                console.error("خطأ في تسجيل الخروج:", error);
                 alert("خطأ في تسجيل الخروج: " + error.message);
             }
         });
@@ -60,6 +65,7 @@
         // مراقبة حالة تسجيل الدخول
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                console.log("المستخدم متصل:", user);
                 document.getElementById("login-btn").style.display = "none";
                 document.getElementById("logout-btn").style.display = "block";
                 document.getElementById("chat-box").style.display = "block";
@@ -72,6 +78,7 @@
                     lastSeen: serverTimestamp()
                 });
             } else {
+                console.log("لا يوجد مستخدم متصل");
                 document.getElementById("login-btn").style.display = "block";
                 document.getElementById("logout-btn").style.display = "none";
                 document.getElementById("chat-box").style.display = "none";
@@ -107,6 +114,7 @@
                 });
                 document.getElementById("message-input").value = "";
             } catch (error) {
+                console.error("خطأ في إرسال الرسالة:", error);
                 alert("خطأ في إرسال الرسالة: " + error.message);
             } finally {
                 sendButton.disabled = false;
@@ -147,7 +155,7 @@
                     <img src="${user.photoURL || 'https://via.placeholder.com/30'}" alt="صورة المستخدم" class="user-photo">
                     <div class="user-info">
                         <strong>${user.name}</strong>
-                        <small>${user.isOnline ? "متصل الآن" : "آخر ظهور: ${new Date(user.lastSeen?.toDate()).toLocaleTimeString()}"}</small>
+                        <small>${user.isOnline ? "متصل الآن" : "آخر ظهور: " + new Date(user.lastSeen?.toDate()).toLocaleTimeString()}</small>
                     </div>
                 `;
                 usersList.appendChild(userDiv);
