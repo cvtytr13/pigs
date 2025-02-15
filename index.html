@@ -61,7 +61,6 @@
                         photoURL: user.photoURL || '/api/placeholder/40/40',
                         lastActive: serverTimestamp()
                     }, { merge: true });
-                    window.location.href = "chat.html"; // تحويل المستخدم إلى صفحة الدردشة
                 })
                 .catch(error => showAlert("خطأ: " + error.message, "error"));
         });
@@ -93,7 +92,6 @@
                 })
                 .then(() => {
                     showAlert("تم إنشاء الحساب بنجاح", "success");
-                    window.location.href = "chat.html"; // تحويل المستخدم إلى صفحة الدردشة
                 })
                 .catch(error => showAlert("خطأ: " + error.message, "error"));
         });
@@ -119,7 +117,6 @@
                 })
                 .then(() => {
                     showAlert("تم تسجيل الدخول بنجاح", "success");
-                    window.location.href = "chat.html"; // تحويل المستخدم إلى صفحة الدردشة
                 })
                 .catch(error => showAlert("خطأ: " + error.message, "error"));
         });
