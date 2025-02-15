@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دردشة فورية</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { 
@@ -14,33 +13,16 @@
             signOut, 
             onAuthStateChanged, 
             createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword,
-            updateProfile
+            signInWithEmailAndPassword 
         } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            onSnapshot, 
-            query, 
-            orderBy, 
-            serverTimestamp,
-            setDoc,
-            doc
-        } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-        import { 
-            getStorage, 
-            ref, 
-            uploadBytes, 
-            getDownloadURL 
-        } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
             authDomain: "messge13.firebaseapp.com",
             databaseURL: "https://messge13.firebaseio.com",
             projectId: "messge13",
-            storageBucket: "messge13.appspot.com",
+            storageBucket: "messge13.firebasestorage.app",
             messagingSenderId: "192460606316",
             appId: "1:192460606316:web:2b6025c6a7777804654149"
         };
@@ -48,21 +30,11 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
         const provider = new GoogleAuthProvider();
 
         // تسجيل الدخول عبر Google
         document.getElementById("login-google-btn").addEventListener("click", () => {
-            signInWithPopup(auth, provider)
-                .then((result) => {
-                    const user = result.user;
-                    setDoc(doc(db, "users", user.uid), {
-                        displayName: user.displayName,
-                        photoURL: user.photoURL || '/api/placeholder/40/40',
-                        lastActive: serverTimestamp()
-                    }, { merge: true });
-                })
-                .catch(error => showAlert("خطأ: " + error.message, "error"));
+            signInWithPopup(auth, provider).catch(error => alert("خطأ: " + error.message));
         });
 
         // إنشاء حساب جديد
@@ -71,29 +43,15 @@
             const password = document.getElementById("password-input").value;
             const name = document.getElementById("name-input").value;
 
-            if (!email || !password || !name) {
-                showAlert("الرجاء ملء جميع الحقول المطلوبة", "warning");
-                return;
-            }
-
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     // تحديث اسم المستخدم
                     const user = userCredential.user;
-                    return updateProfile(user, {
+                    return user.updateProfile({
                         displayName: name
-                    }).then(() => {
-                        return setDoc(doc(db, "users", user.uid), {
-                            displayName: name,
-                            photoURL: '/api/placeholder/40/40',
-                            lastActive: serverTimestamp()
-                        });
                     });
                 })
-                .then(() => {
-                    showAlert("تم إنشاء الحساب بنجاح", "success");
-                })
-                .catch(error => showAlert("خطأ: " + error.message, "error"));
+                .catch(error => alert("خطأ: " + error.message));
         });
 
         // تسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور
@@ -101,203 +59,107 @@
             const email = document.getElementById("email-input").value;
             const password = document.getElementById("password-input").value;
 
-            if (!email || !password) {
-                showAlert("الرجاء إدخال البريد الإلكتروني وكلمة المرور", "warning");
-                return;
-            }
-
             signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    const user = userCredential.user;
-                    return setDoc(doc(db, "users", user.uid), {
-                        displayName: user.displayName,
-                        photoURL: user.photoURL || '/api/placeholder/40/40',
-                        lastActive: serverTimestamp()
-                    }, { merge: true });
-                })
-                .then(() => {
-                    showAlert("تم تسجيل الدخول بنجاح", "success");
-                })
-                .catch(error => showAlert("خطأ: " + error.message, "error"));
+                .catch(error => alert("خطأ: " + error.message));
         });
 
         // تسجيل الخروج
         document.getElementById("logout-btn").addEventListener("click", () => {
-            signOut(auth)
-                .then(() => {
-                    showAlert("تم تسجيل الخروج بنجاح", "info");
-                })
-                .catch(error => showAlert("خطأ: " + error.message, "error"));
+            signOut(auth);
         });
-
-        // إظهار رسائل التنبيهات
-        function showAlert(message, type) {
-            const alertBox = document.getElementById("alert-box");
-            alertBox.textContent = message;
-            alertBox.className = "alert " + type;
-            alertBox.style.display = "block";
-            
-            // إخفاء التنبيه بعد 3 ثوانٍ
-            setTimeout(() => {
-                alertBox.style.display = "none";
-            }, 3000);
-        }
 
         // مراقبة حالة تسجيل الدخول
         onAuthStateChanged(auth, user => {
             if (user) {
-                // تحديث حالة المستخدم عند تسجيل الدخول
-                setDoc(doc(db, "users", user.uid), {
-                    displayName: user.displayName,
-                    photoURL: user.photoURL || '/api/placeholder/40/40',
-                    lastActive: serverTimestamp()
-                }, { merge: true });
-
-                document.getElementById("auth-container").style.display = "none";
-                document.getElementById("chat-container").style.display = "flex";
-                document.getElementById("current-user-name").textContent = user.displayName || "مستخدم";
-                if (user.photoURL) {
-                    document.getElementById("current-user-img").src = user.photoURL;
-                }
+                document.getElementById("login-google-btn").style.display = "none";
+                document.getElementById("signup-btn").style.display = "none";
+                document.getElementById("login-email-btn").style.display = "none";
+                document.getElementById("logout-btn").style.display = "block";
+                document.getElementById("chat-box").style.display = "block";
+                document.getElementById("input-area").style.display = "block";
+                document.getElementById("user-list").style.display = "block";
+                document.getElementById("auth-fields").style.display = "none";
             } else {
-                document.getElementById("auth-container").style.display = "block";
-                document.getElementById("chat-container").style.display = "none";
+                document.getElementById("login-google-btn").style.display = "block";
+                document.getElementById("signup-btn").style.display = "block";
+                document.getElementById("login-email-btn").style.display = "block";
+                document.getElementById("logout-btn").style.display = "none";
+                document.getElementById("chat-box").style.display = "none";
+                document.getElementById("input-area").style.display = "none";
+                document.getElementById("user-list").style.display = "none";
+                document.getElementById("auth-fields").style.display = "block";
             }
         });
 
-        // إرسال رسالة نصية
-        document.getElementById("send-btn").addEventListener("click", sendMessage);
-        document.getElementById("message-input").addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-                sendMessage();
-            }
-        });
-
-        async function sendMessage() {
-            const messageInput = document.getElementById("message-input");
-            const message = messageInput.value;
+        // إرسال رسالة
+        document.getElementById("send-btn").addEventListener("click", async () => {
+            const message = document.getElementById("message-input").value;
             if (message.trim() === "" || !auth.currentUser) return;
 
-            try {
-                await addDoc(collection(db, "messages"), {
-                    text: message,
-                    sender: auth.currentUser.displayName,
-                    uid: auth.currentUser.uid,
-                    photoURL: auth.currentUser.photoURL || '/api/placeholder/40/40',
-                    timestamp: serverTimestamp(),
-                    type: "text"
-                });
+            await addDoc(collection(db, "messages"), {
+                text: message,
+                sender: auth.currentUser.displayName,
+                uid: auth.currentUser.uid,
+                photoURL: auth.currentUser.photoURL,
+                timestamp: serverTimestamp()
+            });
 
-                messageInput.value = "";
-                showAlert("تم إرسال الرسالة بنجاح", "success");
-            } catch (error) {
-                showAlert("خطأ في إرسال الرسالة: " + error.message, "error");
-            }
-        }
+            document.getElementById("message-input").value = "";
+        });
 
         // إرسال صورة أو فيديو
         document.getElementById("file-input").addEventListener("change", async (e) => {
             const file = e.target.files[0];
             if (!file || !auth.currentUser) return;
-            
-            // عرض مؤشر التحميل
-            document.getElementById("loading-spinner").style.display = "inline-block";
-            
-            try {
-                // تحميل الملف إلى Firebase Storage
-                const storageRef = ref(storage, `media/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
-                await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(storageRef);
-                
-                // إضافة رسالة بالرابط
+
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const base64 = reader.result.split(",")[1];
                 await addDoc(collection(db, "messages"), {
                     type: file.type.startsWith("image") ? "image" : "video",
-                    fileURL: downloadURL,
-                    fileName: file.name,
+                    content: base64,
                     sender: auth.currentUser.displayName,
                     uid: auth.currentUser.uid,
-                    photoURL: auth.currentUser.photoURL || '/api/placeholder/40/40',
+                    photoURL: auth.currentUser.photoURL,
                     timestamp: serverTimestamp()
                 });
-                
-                showAlert("تم إرسال الملف بنجاح", "success");
-            } catch (error) {
-                showAlert("خطأ في إرسال الملف: " + error.message, "error");
-            } finally {
-                // إخفاء مؤشر التحميل
-                document.getElementById("loading-spinner").style.display = "none";
-                // إعادة ضبط حقل الملف
-                e.target.value = null;
-            }
-        });
-
-        // تحميل صورة
-        document.getElementById("image-btn").addEventListener("click", () => {
-            document.getElementById("file-input").click();
+            };
+            reader.readAsDataURL(file);
         });
 
         // تسجيل صوت
         let mediaRecorder;
         let audioChunks = [];
-        
         document.getElementById("record-btn").addEventListener("click", async () => {
-            try {
-                if (!mediaRecorder) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) audioChunks.push(e.data);
-                    };
-                    
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-                        const audioFile = new File([audioBlob], "audio_" + Date.now() + ".wav", { type: "audio/wav" });
-                        
-                        // عرض مؤشر التحميل
-                        document.getElementById("loading-spinner").style.display = "inline-block";
-                        
-                        try {
-                            // تحميل الملف الصوتي إلى Firebase Storage
-                            const storageRef = ref(storage, `audio/${auth.currentUser.uid}/${Date.now()}_audio.wav`);
-                            await uploadBytes(storageRef, audioFile);
-                            const downloadURL = await getDownloadURL(storageRef);
-                            
-                            // إضافة رسالة بالرابط
-                            await addDoc(collection(db, "messages"), {
-                                type: "audio",
-                                fileURL: downloadURL,
-                                sender: auth.currentUser.displayName,
-                                uid: auth.currentUser.uid,
-                                photoURL: auth.currentUser.photoURL || '/api/placeholder/40/40',
-                                timestamp: serverTimestamp()
-                            });
-                            
-                            showAlert("تم إرسال التسجيل الصوتي بنجاح", "success");
-                        } catch (error) {
-                            showAlert("خطأ في إرسال التسجيل الصوتي: " + error.message, "error");
-                        } finally {
-                            // إخفاء مؤشر التحميل
-                            document.getElementById("loading-spinner").style.display = "none";
-                        }
-                        
+            if (!mediaRecorder) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                        const base64 = reader.result.split(",")[1];
+                        await addDoc(collection(db, "messages"), {
+                            type: "audio",
+                            content: base64,
+                            sender: auth.currentUser.displayName,
+                            uid: auth.currentUser.uid,
+                            photoURL: auth.currentUser.photoURL,
+                            timestamp: serverTimestamp()
+                        });
                         audioChunks = [];
                     };
-                }
+                    reader.readAsDataURL(audioBlob);
+                };
+            }
 
-                if (mediaRecorder.state === "recording") {
-                    mediaRecorder.stop();
-                    document.getElementById("record-btn").innerHTML = '<i class="fas fa-microphone"></i>';
-                    document.getElementById("record-btn").classList.remove("recording");
-                    showAlert("تم إيقاف التسجيل", "info");
-                } else {
-                    mediaRecorder.start();
-                    document.getElementById("record-btn").innerHTML = '<i class="fas fa-stop"></i>';
-                    document.getElementById("record-btn").classList.add("recording");
-                    showAlert("جارٍ التسجيل...", "info");
-                }
-            } catch (error) {
-                showAlert("خطأ في الوصول إلى الميكروفون: " + error.message, "error");
+            if (mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                document.getElementById("record-btn").innerText = "تسجيل صوت";
+            } else {
+                mediaRecorder.start();
+                document.getElementById("record-btn").innerText = "إيقاف التسجيل";
             }
         });
 
@@ -305,640 +167,198 @@
         onSnapshot(query(collection(db, "messages"), orderBy("timestamp")), snapshot => {
             const chatBox = document.getElementById("chat-box");
             chatBox.innerHTML = "";
-            
             snapshot.forEach(doc => {
                 const data = doc.data();
                 const messageDiv = document.createElement("div");
                 messageDiv.classList.add("message");
                 messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
-                
-                // إضافة معلومات المرسل
-                const senderInfo = document.createElement("div");
-                senderInfo.classList.add("sender-info");
-                
-                const senderImg = document.createElement("img");
-                senderImg.src = data.photoURL || '/api/placeholder/40/40';
-                senderImg.alt = data.sender;
-                senderInfo.appendChild(senderImg);
-                
-                const senderName = document.createElement("span");
-                senderName.textContent = data.sender;
-                senderInfo.appendChild(senderName);
-                
-                // إضافة الطابع الزمني إذا كان متاحًا
-                if (data.timestamp) {
-                    const timestamp = data.timestamp.toDate();
-                    const timeString = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    const dateString = timestamp.toLocaleDateString();
-                    
-                    const timeElement = document.createElement("span");
-                    timeElement.classList.add("message-time");
-                    timeElement.textContent = `${timeString}, ${dateString}`;
-                    senderInfo.appendChild(timeElement);
-                }
-                
-                messageDiv.appendChild(senderInfo);
-                
-                // إضافة محتوى الرسالة حسب نوعها
-                const contentDiv = document.createElement("div");
-                contentDiv.classList.add("message-content");
-                
+
                 if (data.type === "image") {
-                    const img = document.createElement("img");
-                    img.src = data.fileURL;
-                    img.loading = "lazy";
-                    img.classList.add("message-image");
-                    img.addEventListener("click", () => {
-                        window.open(img.src, "_blank");
-                    });
-                    contentDiv.appendChild(img);
-                    
+                    messageDiv.innerHTML = `
+                        <img src="data:image/jpeg;base64,${data.content}" alt="صورة" loading="lazy" style="max-width: 100%;">
+                        <p>${data.sender}</p>
+                    `;
                 } else if (data.type === "video") {
-                    const video = document.createElement("video");
-                    video.controls = true;
-                    video.src = data.fileURL;
-                    video.classList.add("message-video");
-                    contentDiv.appendChild(video);
-                    
+                    messageDiv.innerHTML = `
+                        <video controls src="data:video/mp4;base64,${data.content}" style="max-width: 100%;"></video>
+                        <p>${data.sender}</p>
+                    `;
                 } else if (data.type === "audio") {
-                    const audio = document.createElement("audio");
-                    audio.controls = true;
-                    audio.src = data.fileURL;
-                    audio.classList.add("message-audio");
-                    contentDiv.appendChild(audio);
-                    
+                    messageDiv.innerHTML = `
+                        <audio controls src="data:audio/wav;base64,${data.content}"></audio>
+                        <p>${data.sender}</p>
+                    `;
                 } else {
-                    // رسالة نصية
-                    const text = document.createElement("p");
-                    text.textContent = data.text;
-                    contentDiv.appendChild(text);
+                    messageDiv.innerHTML = `
+                        <p>${data.sender}: ${data.text}</p>
+                    `;
                 }
-                
-                messageDiv.appendChild(contentDiv);
+
                 chatBox.appendChild(messageDiv);
             });
-            
-            // التمرير إلى آخر رسالة
             chatBox.scrollTop = chatBox.scrollHeight;
         });
 
         // قائمة المستخدمين
         onSnapshot(collection(db, "users"), snapshot => {
-            const userList = document.getElementById("user-list-content");
-            userList.innerHTML = "";
-            
+            const userList = document.getElementById("user-list");
+            userList.innerHTML = "<h3>المستخدمون النشطون</h3>";
             snapshot.forEach(doc => {
                 const user = doc.data();
-                if (!user.displayName) return; // تخطي المستخدمين بدون اسم
-                
                 const userDiv = document.createElement("div");
-                userDiv.classList.add("user-item");
-                
-                const userImg = document.createElement("img");
-                userImg.src = user.photoURL || '/api/placeholder/40/40';
-                userImg.alt = user.displayName;
-                userDiv.appendChild(userImg);
-                
-                const userName = document.createElement("span");
-                userName.textContent = user.displayName;
-                userDiv.appendChild(userName);
-                
-                // إضافة مؤشر الحالة
-                const statusDot = document.createElement("span");
-                statusDot.classList.add("status-dot");
-                // التحقق من آخر نشاط (في آخر 5 دقائق يعتبر نشط)
-                if (user.lastActive && (Date.now() - user.lastActive.toMillis()) < 5 * 60 * 1000) {
-                    statusDot.classList.add("active");
-                }
-                userDiv.appendChild(statusDot);
-                
+                userDiv.innerHTML = `
+                    <img src="${user.photoURL}" alt="صورة المستخدم" style="width: 30px; height: 30px; border-radius: 50%;">
+                    <p>${user.displayName}</p>
+                `;
                 userList.appendChild(userDiv);
             });
         });
     </script>
     <style>
-        :root {
-            --primary-color: #0078ff;
-            --light-primary: #e6f2ff;
-            --secondary-color: #f0f2f5;
-            --text-color: #333;
-            --light-text: #666;
-            --border-color: #ddd;
-            --sent-bg: var(--primary-color);
-            --received-bg: var(--secondary-color);
-            --alert-success: #4CAF50;
-            --alert-error: #f44336;
-            --alert-warning: #ff9800;
-            --alert-info: #2196F3;
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
             margin: 0;
             padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            direction: rtl;
-        }
-        
-        .container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        
-        /* Header */
-        .header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-        }
-        
-        .app-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-        
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .user-profile img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid white;
-        }
-        
-        /* الجزء الرئيسي */
-        #auth-container, #chat-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        #chat-container {
-            display: none;
-            flex-direction: row;
-        }
-        
-        /* منطقة المصادقة */
-        .auth-box {
-            max-width: 400px;
-            width: 90%;
-            margin: 40px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .auth-title {
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--primary-color);
-        }
-        
-        .input-group {
-            margin-bottom: 15px;
-        }
-        
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        
-        .input-group input:focus {
-            border-color: var(--primary-color);
-            outline: none;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 12px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            height: 100vh;
         }
-        
-        .btn:hover {
-            background: #0056b3;
-        }
-        
-        .btn-google {
-            background: #db4437;
-        }
-        
-        .btn-google:hover {
-            background: #c5372b;
-        }
-        
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 20px 0;
-            color: var(--light-text);
-        }
-        
-        .divider::before, .divider::after {
-            content: "";
-            flex: 1;
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .divider span {
-            padding: 0 10px;
-        }
-        
-        /* منطقة الدردشة */
-        .chat-area {
-            flex: 1;
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            border-left: 1px solid var(--border-color);
+            height: 90vh;
         }
-        
+        #auth-fields {
+            padding: 20px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+        }
+        #auth-fields input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #auth-fields button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #auth-fields button:hover {
+            background: #0056b3;
+        }
         #chat-box {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
-            background-color: #f5f7fb;
+            border-bottom: 1px solid #ddd;
         }
-        
         .message {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
             max-width: 70%;
-            margin-bottom: 20px;
-            position: relative;
+            word-wrap: break-word;
         }
-        
-        .sender-info {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-            font-size: 0.85rem;
-            color: var(--light-text);
-        }
-        
-        .sender-info img {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            margin-left: 5px;
-        }
-        
-        .message-time {
-            margin-right: 10px;
-            font-size: 0.75rem;
-        }
-        
-        .message-content {
-            padding: 12px;
-            border-radius: 18px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-        
         .sent {
-            align-self: flex-end;
-            margin-left: auto;
-        }
-        
-        .sent .message-content {
-            background-color: var(--sent-bg);
+            background: #007bff;
             color: white;
-            border-bottom-left-radius: 18px;
-            border-bottom-right-radius: 4px;
-            border-top-left-radius: 18px;
-            border-top-right-radius: 18px;
+            align-self: flex-end;
         }
-        
         .received {
+            background: #f1f1f1;
             align-self: flex-start;
-            margin-right: auto;
         }
-        
-        .received .message-content {
-            background-color: var(--received-bg);
-            color: var(--text-color);
-            border-bottom-left-radius: 4px;
-            border-bottom-right-radius: 18px;
-            border-top-left-radius: 18px;
-            border-top-right-radius: 18px;
-        }
-        
-        .message-image {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        
-        .message-video, .message-audio {
-            max-width: 100%;
-            border-radius: 8px;
-        }
-        
-        /* منطقة الإدخال */
-        .input-area {
-            padding: 15px;
-            background-color: white;
-            border-top: 1px solid var(--border-color);
+        #input-area {
+            padding: 10px;
+            background: #f9f9f9;
             display: flex;
-            align-items: center;
+            gap: 10px;
         }
-        
         #message-input {
             flex: 1;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
-        
-        #message-input:focus {
-            border-color: var(--primary-color);
-        }
-        
-        .action-buttons {
-            display: flex;
-            margin-right: 10px;
-        }
-        
-        .action-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--light-primary);
-            color: var(--primary-color);
+        #send-btn, #record-btn {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
             border: none;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-right: 8px;
-            transition: background 0.3s;
-        }
-        
-        .action-btn:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-        
-        .action-btn.recording {
-            background: #ff4d4d;
-            color: white;
-        }
-        
-        /* قائمة المستخدمين */
-        .user-list {
-            width: 280px;
-            background-color: white;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .user-list-header {
-            padding: 15px;
-            font-weight: bold;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-color);
-        }
-        
-        .user-list-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        
-        .user-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
             border-radius: 5px;
             cursor: pointer;
-            position: relative;
         }
-        
-        .user-item:hover {
-            background-color: var(--secondary-color);
+        #send-btn:hover, #record-btn:hover {
+            background: #0056b3;
         }
-        
-        .user-item img {
-            width: 40px;
-            height: 40px;
+        #user-list {
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 1px solid #ddd;
+            width: 250px;
+            overflow-y: auto;
+        }
+        #user-list h3 {
+            margin: 0 0 10px 0;
+        }
+        #user-list div {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        #user-list img {
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            margin-left: 10px;
-            object-fit: cover;
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: #ccc;
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            border: 2px solid white;
-        }
-        
-        .status-dot.active {
-            background-color: #4CAF50;
-        }
-        
-        /* التنبيهات */
-        .alert {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 5px;
-            color: white;
-            font-weight: bold;
-            z-index: 1000;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            display: none;
-        }
-        
-        .alert.success {
-            background-color: var(--alert-success);
-        }
-        
-        .alert.error {
-            background-color: var(--alert-error);
-        }
-        
-        .alert.warning {
-            background-color: var(--alert-warning);
-        }
-        
-        .alert.info {
-            background-color: var(--alert-info);
-        }
-        
-        /* مؤشر التحميل */
-        .loading-spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s ease-in-out infinite;
             margin-right: 10px;
         }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        /* تصميم متجاوب */
         @media (max-width: 768px) {
-            #chat-container {
+            .container {
                 flex-direction: column;
+                height: 100vh;
             }
-            
-            .user-list {
+            #user-list {
                 width: 100%;
-                max-height: 200px;
-                order: 1;
-            }
-            
-            .chat-area {
-                order: 2;
                 border-left: none;
-                border-top: 1px solid var(--border-color);
-            }
-            
-            .message {
-                max-width: 85%;
+                border-top: 1px solid #ddd;
             }
         }
     </style>
 </head>
 <body>
-    <!-- التنبيهات -->
-    <div id="alert-box" class="alert"></div>
-    
     <div class="container">
-        <!-- منطقة رأس الصفحة -->
-        <div class="header">
-            <div class="app-title">
-                <i class="fas fa-comments"></i> دردشة فورية
-            </div>
-            <div class="user-profile" id="user-profile">
-                <span id="current-user-name">زائر</span>
-                <img id="current-user-img" src="/api/placeholder/40/40" alt="صورة المستخدم">
-            </div>
+        <div id="auth-fields">
+            <input type="text" id="name-input" placeholder="الاسم">
+            <input type="email" id="email-input" placeholder="البريد الإلكتروني">
+            <input type="password" id="password-input" placeholder="كلمة المرور">
+            <button id="signup-btn">إنشاء حساب</button>
+            <button id="login-email-btn">تسجيل الدخول</button>
         </div>
+        <button id="login-google-btn">تسجيل الدخول عبر Google</button>
+        <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
+        
+        <div id="chat-box" style="display:none;"></div>
+        <div id="user-list" style="display:none;"></div>
 
-        <!-- حاوية المصادقة -->
-        <div id="auth-container">
-            <div class="auth-box">
-                <h2 class="auth-title">أهلاً بك في تطبيق الدردشة</h2>
-                
-                <div class="input-group">
-                    <input type="text" id="name-input" placeholder="الاسم">
-                </div>
-                
-                <div class="input-group">
-                    <input type="email" id="email-input" placeholder="البريد الإلكتروني">
-                </div>
-                
-                <div class="input-group">
-                    <input type="password" id="password-input" placeholder="كلمة المرور">
-                </div>
-                
-                <button id="signup-btn" class="btn">
-                    <i class="fas fa-user-plus"></i> إنشاء حساب
-                </button>
-                
-                <button id="login-email-btn" class="btn">
-                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
-                </button>
-                
-                <div class="divider">
-                    <span>أو</span>
-                </div>
-                
-                <button id="login-google-btn" class="btn btn-google">
-                    <i class="fab fa-google"></i> تسجيل الدخول عبر Google
-                </button>
-            </div>
-        </div>
-
-        <!-- حاوية الدردشة -->
-        <div id="chat-container">
-            <!-- قائمة المستخدمين -->
-            <div class="user-list">
-                <div class="user-list-header">
-                    <i class="fas fa-users"></i> المستخدمون النشطون
-                </div>
-                <div class="user-list-content" id="user-list-content"></div>
-            </div>
-
-            <!-- منطقة الدردشة -->
-            <div class="chat-area">
-                <div id="chat-box"></div>
-                
-                <div class="input-area">
-                    <input type="text" id="message-input" placeholder="اكتب رسالة...">
-                    
-                    <div class="action-buttons">
-                        <input type="file" id="file-input" accept="image/*, video/*" style="display: none;">
-                        <button id="image-btn" class="action-btn" title="إرسال صورة أو فيديو">
-                            <i class="fas fa-image"></i>
-                        </button>
-                        
-                        <button id="record-btn" class="action-btn" title="تسجيل صوت">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        
-                        <div id="loading-spinner" class="loading-spinner"></div>
-                        
-                        <button id="send-btn" class="action-btn" title="إرسال">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div id="input-area" style="display:none;">
+            <input type="text" id="message-input" placeholder="اكتب رسالة...">
+            <button id="send-btn">إرسال</button>
+            <input type="file" id="file-input" accept="image/*, video/*">
+            <button id="record-btn">تسجيل صوت</button>
         </div>
     </div>
 </body>
