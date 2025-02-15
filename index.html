@@ -6,7 +6,7 @@
     <title>دردشة فورية</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, setDoc, doc, onSnapshot, query, orderBy, updateDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -22,28 +22,54 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({
-            client_id: "192460606316-7vnmd7crhbklv3cliki6nlskph9be2qe.apps.googleusercontent.com"
-        });
 
-        document.getElementById("login-btn").addEventListener("click", () => {
-            signInWithPopup(auth, provider).then(async result => {
-                const user = result.user;
-                const userRef = doc(db, "users", user.uid);
-                const userData = await getDoc(userRef);
-                if (!userData.exists()) {
-                    await setDoc(userRef, {
-                        name: user.displayName,
-                        email: user.email,
-                        photo: user.photoURL || "",
+        document.getElementById("register-btn").addEventListener("click", async () => {
+            const email = document.getElementById("register-email").value;
+            const password = document.getElementById("register-password").value;
+            const name = document.getElementById("register-name").value;
+            const photo = document.getElementById("register-photo").files[0];
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                let photoURL = "";
+                
+                if (photo) {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                        photoURL = reader.result;
+                        await setDoc(doc(db, "users", user.uid), {
+                            name,
+                            email,
+                            photo: photoURL,
+                            lastSeen: serverTimestamp(),
+                            online: true
+                        });
+                    };
+                    reader.readAsDataURL(photo);
+                } else {
+                    await setDoc(doc(db, "users", user.uid), {
+                        name,
+                        email,
+                        photo: "",
                         lastSeen: serverTimestamp(),
                         online: true
                     });
-                } else {
-                    await updateDoc(userRef, { online: true });
                 }
-            }).catch(error => alert("خطأ: " + error.message));
+            } catch (error) {
+                alert("خطأ في التسجيل: " + error.message);
+            }
+        });
+
+        document.getElementById("login-btn").addEventListener("click", async () => {
+            const email = document.getElementById("login-email").value;
+            const password = document.getElementById("login-password").value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                alert("خطأ في تسجيل الدخول: " + error.message);
+            }
         });
 
         document.getElementById("logout-btn").addEventListener("click", async () => {
@@ -58,16 +84,12 @@
 
         onAuthStateChanged(auth, async user => {
             if (user) {
-                document.getElementById("login-btn").style.display = "none";
-                document.getElementById("logout-btn").style.display = "block";
-                document.getElementById("chat-box").style.display = "block";
-                document.getElementById("input-area").style.display = "block";
+                document.getElementById("auth-section").style.display = "none";
+                document.getElementById("chat-section").style.display = "block";
                 loadUsers();
             } else {
-                document.getElementById("login-btn").style.display = "block";
-                document.getElementById("logout-btn").style.display = "none";
-                document.getElementById("chat-box").style.display = "none";
-                document.getElementById("input-area").style.display = "none";
+                document.getElementById("auth-section").style.display = "block";
+                document.getElementById("chat-section").style.display = "none";
             }
         });
 
@@ -90,7 +112,7 @@
             if (message.trim() === "" || !auth.currentUser) return;
             await addDoc(collection(db, "messages"), {
                 text: message,
-                sender: auth.currentUser.displayName,
+                sender: auth.currentUser.displayName || auth.currentUser.email,
                 senderPhoto: auth.currentUser.photoURL || "",
                 uid: auth.currentUser.uid,
                 timestamp: serverTimestamp()
@@ -111,47 +133,36 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         });
 
-        document.getElementById("image-upload").addEventListener("change", event => {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = async () => {
-                await addDoc(collection(db, "messages"), {
-                    text: "📷 صورة",
-                    image: reader.result,
-                    sender: auth.currentUser.displayName,
-                    senderPhoto: auth.currentUser.photoURL || "",
-                    uid: auth.currentUser.uid,
-                    timestamp: serverTimestamp()
-                });
-            };
-            reader.readAsDataURL(file);
-        });
-
     </script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; }
-        #chat-box { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; height: 400px; overflow-y: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        .container { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
         .message { padding: 5px; margin: 5px; border-radius: 5px; display: flex; align-items: center; }
         .avatar { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; }
-        #message-input { width: 80%; padding: 8px; }
-        button { padding: 8px; margin: 5px; cursor: pointer; }
-        .user { padding: 5px; margin: 5px; background: #fff; border-radius: 5px; display: flex; align-items: center; }
     </style>
 </head>
 <body>
 
-    <h2>دردشة فورية</h2>
-    <button id="login-btn">تسجيل الدخول عبر Google</button>
-    <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
+    <div id="auth-section">
+        <h2>التسجيل</h2>
+        <input type="text" id="register-name" placeholder="الاسم">
+        <input type="email" id="register-email" placeholder="البريد الإلكتروني">
+        <input type="password" id="register-password" placeholder="كلمة المرور">
+        <input type="file" id="register-photo">
+        <button id="register-btn">تسجيل</button>
 
-    <div id="user-list"></div>
-    
-    <div id="chat-box" style="display:none;"></div>
+        <h2>تسجيل الدخول</h2>
+        <input type="email" id="login-email" placeholder="البريد الإلكتروني">
+        <input type="password" id="login-password" placeholder="كلمة المرور">
+        <button id="login-btn">دخول</button>
+    </div>
 
-    <div id="input-area" style="display:none;">
-        <input type="text" id="message-input" placeholder="اكتب رسالة...">
+    <div id="chat-section" style="display:none;">
+        <button id="logout-btn">تسجيل الخروج</button>
+        <div id="user-list"></div>
+        <div id="chat-box"></div>
+        <input type="text" id="message-input">
         <button id="send-btn">إرسال</button>
-        <input type="file" id="image-upload">
     </div>
 
 </body>
