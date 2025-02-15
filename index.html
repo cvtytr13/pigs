@@ -175,7 +175,7 @@
 
                 if (data.type === "image") {
                     messageDiv.innerHTML = `
-                        <img src="data:image/jpeg;base64,${data.content}" alt="صورة" style="max-width: 100%;">
+                        <img src="data:image/jpeg;base64,${data.content}" alt="صورة" loading="lazy" style="max-width: 100%;">
                         <p>${data.sender}</p>
                     `;
                 } else if (data.type === "video") {
@@ -215,41 +215,151 @@
         });
     </script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; }
-        #chat-box { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; height: 400px; overflow-y: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        .message { padding: 5px; margin: 5px; border-radius: 5px; display: inline-block; max-width: 80%; }
-        .sent { background: #d1ffd1; text-align: right; float: right; }
-        .received { background: #fff; text-align: left; float: left; }
-        #input-area { width: 90%; max-width: 500px; margin: auto; margin-top: 10px; }
-        #message-input { width: 70%; padding: 8px; }
-        button { padding: 8px; margin: 5px; cursor: pointer; }
-        #user-list { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; margin-top: 10px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        #auth-fields { width: 90%; max-width: 500px; margin: auto; background: white; padding: 10px; margin-top: 10px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        @media (max-width: 600px) {
-            #chat-box, #input-area, #user-list, #auth-fields { width: 100%; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+        #auth-fields {
+            padding: 20px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+        }
+        #auth-fields input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #auth-fields button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #auth-fields button:hover {
+            background: #0056b3;
+        }
+        #chat-box {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .sent {
+            background: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .received {
+            background: #f1f1f1;
+            align-self: flex-start;
+        }
+        #input-area {
+            padding: 10px;
+            background: #f9f9f9;
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #send-btn, #record-btn {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #send-btn:hover, #record-btn:hover {
+            background: #0056b3;
+        }
+        #user-list {
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 1px solid #ddd;
+            width: 250px;
+            overflow-y: auto;
+        }
+        #user-list h3 {
+            margin: 0 0 10px 0;
+        }
+        #user-list div {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        #user-list img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                height: 100vh;
+            }
+            #user-list {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #ddd;
+            }
         }
     </style>
 </head>
 <body>
-    <h2>دردشة فورية</h2>
-    <div id="auth-fields">
-        <input type="text" id="name-input" placeholder="الاسم">
-        <input type="email" id="email-input" placeholder="البريد الإلكتروني">
-        <input type="password" id="password-input" placeholder="كلمة المرور">
-        <button id="signup-btn">إنشاء حساب</button>
-        <button id="login-email-btn">تسجيل الدخول</button>
-    </div>
-    <button id="login-google-btn">تسجيل الدخول عبر Google</button>
-    <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
-    
-    <div id="chat-box" style="display:none;"></div>
-    <div id="user-list" style="display:none;"></div>
+    <div class="container">
+        <div id="auth-fields">
+            <input type="text" id="name-input" placeholder="الاسم">
+            <input type="email" id="email-input" placeholder="البريد الإلكتروني">
+            <input type="password" id="password-input" placeholder="كلمة المرور">
+            <button id="signup-btn">إنشاء حساب</button>
+            <button id="login-email-btn">تسجيل الدخول</button>
+        </div>
+        <button id="login-google-btn">تسجيل الدخول عبر Google</button>
+        <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
+        
+        <div id="chat-box" style="display:none;"></div>
+        <div id="user-list" style="display:none;"></div>
 
-    <div id="input-area" style="display:none;">
-        <input type="text" id="message-input" placeholder="اكتب رسالة...">
-        <button id="send-btn">إرسال</button>
-        <input type="file" id="file-input" accept="image/*, video/*">
-        <button id="record-btn">تسجيل صوت</button>
+        <div id="input-area" style="display:none;">
+            <input type="text" id="message-input" placeholder="اكتب رسالة...">
+            <button id="send-btn">إرسال</button>
+            <input type="file" id="file-input" accept="image/*, video/*">
+            <button id="record-btn">تسجيل صوت</button>
+        </div>
     </div>
 </body>
 </html>
