@@ -11,12 +11,15 @@
             background-color: #f4f4f4;
             margin: 0;
             padding: 0;
+            direction: rtl;
         }
+
         .container {
             display: flex;
             flex-direction: column;
             height: 100vh;
         }
+
         .app-header {
             background-color: #2ecc71;
             color: white;
@@ -25,29 +28,35 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .app-title {
-            font-size: 1.5em;
+            font-size: 20px;
         }
+
         .login-section {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100%;
+            height: 100vh;
         }
+
         .login-title {
-            font-size: 2em;
+            font-size: 24px;
             margin-bottom: 20px;
         }
+
         .input-group {
             margin-bottom: 15px;
         }
+
         .input-group input {
             width: 100%;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
+
         .auth-btn {
             background-color: #2ecc71;
             color: white;
@@ -55,92 +64,120 @@
             padding: 10px 20px;
             border-radius: 5px;
             cursor: pointer;
-            margin: 5px;
+            margin-bottom: 10px;
         }
+
         .auth-btn:hover {
             background-color: #27ae60;
         }
+
         .google-btn {
             background-color: #db4437;
         }
+
         .google-btn:hover {
-            background-color: #c23321;
+            background-color: #c1351d;
         }
+
         .or-divider {
-            margin: 10px 0;
-            font-size: 1.2em;
+            margin: 15px 0;
+            text-align: center;
         }
+
         .main-content {
             display: flex;
             flex: 1;
         }
+
         #sidebar {
             width: 250px;
             background-color: #2c3e50;
             color: white;
             padding: 10px;
         }
+
         .user-list-header {
-            font-size: 1.2em;
+            font-size: 18px;
             margin-bottom: 10px;
         }
+
         .user-item {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
+
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            margin-right: 10px;
+            margin-left: 10px;
         }
+
         .chat-section {
             flex: 1;
             display: flex;
             flex-direction: column;
         }
+
         #chat-box {
             flex: 1;
             padding: 10px;
             overflow-y: auto;
             background-color: white;
         }
+
         .message {
             margin-bottom: 10px;
             padding: 10px;
             border-radius: 5px;
             max-width: 70%;
         }
-        .message.sent {
+
+        .sent {
             background-color: #dcf8c6;
-            align-self: flex-end;
+            margin-left: auto;
         }
-        .message.received {
+
+        .received {
             background-color: #ececec;
-            align-self: flex-start;
+            margin-right: auto;
         }
+
+        .media-message img, .media-message video {
+            max-width: 100%;
+            border-radius: 5px;
+        }
+
+        .audio-message audio {
+            width: 100%;
+        }
+
         .message-info {
-            font-size: 0.8em;
+            font-size: 12px;
             color: #666;
             margin-top: 5px;
         }
+
         #input-area {
             display: flex;
             padding: 10px;
             background-color: #f4f4f4;
         }
+
         #message-input {
             flex: 1;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            margin-right: 10px;
         }
+
         .action-buttons {
             display: flex;
             align-items: center;
+            margin-left: 10px;
         }
+
         .icon-btn {
             background-color: #2ecc71;
             color: white;
@@ -150,9 +187,11 @@
             cursor: pointer;
             margin-left: 5px;
         }
+
         .icon-btn:hover {
             background-color: #27ae60;
         }
+
         .file-label {
             cursor: pointer;
             display: inline-flex;
@@ -162,10 +201,19 @@
             background-color: #2ecc71;
             color: white;
             border-radius: 50%;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s;
         }
+
         .file-label:hover {
             background-color: #27ae60;
+        }
+
+        .file-label i {
+            font-size: 18px;
+        }
+
+        #file-input {
+            display: none;
         }
     </style>
 </head>
@@ -220,10 +268,10 @@
                 <div id="input-area">
                     <input type="text" id="message-input" placeholder="اكتب رسالة...">
                     <div class="action-buttons">
-                        <label for="file-input" class="file-label icon-btn">
+                        <label for="file-input" class="file-label">
                             <i class="fas fa-paperclip"></i>
                         </label>
-                        <input type="file" id="file-input" accept="image/*, video/*" style="display: none;">
+                        <input type="file" id="file-input" accept="image/*, video/*">
 
                         <button id="record-btn" class="icon-btn">
                             <i class="fas fa-microphone"></i>
@@ -266,8 +314,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
-
-        let selectedFile = null;
 
         // تسجيل الدخول عبر Google
         document.getElementById("login-google-btn").addEventListener("click", () => {
@@ -370,35 +416,16 @@
         async function sendMessage() {
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
-            if ((message === "" && !selectedFile) || !auth.currentUser) return;
+            if (message === "" || !auth.currentUser) return;
 
             try {
-                if (selectedFile) {
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        const base64 = reader.result.split(",")[1];
-                        await addDoc(collection(db, "messages"), {
-                            type: selectedFile.type.startsWith("image") ? "image" : "video",
-                            content: base64,
-                            sender: auth.currentUser.displayName || "مستخدم",
-                            uid: auth.currentUser.uid,
-                            photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
-                            timestamp: serverTimestamp()
-                        });
-                        selectedFile = null;
-                    };
-                    reader.readAsDataURL(selectedFile);
-                }
-
-                if (message !== "") {
-                    await addDoc(collection(db, "messages"), {
-                        text: message,
-                        sender: auth.currentUser.displayName || "مستخدم",
-                        uid: auth.currentUser.uid,
-                        photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
-                        timestamp: serverTimestamp()
-                    });
-                }
+                await addDoc(collection(db, "messages"), {
+                    text: message,
+                    sender: auth.currentUser.displayName || "مستخدم",
+                    uid: auth.currentUser.uid,
+                    photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
+                    timestamp: serverTimestamp()
+                });
 
                 messageInput.value = "";
             } catch (error) {
@@ -406,9 +433,96 @@
             }
         }
 
-        // اختيار ملف
-        document.getElementById("file-input").addEventListener("change", (e) => {
-            selectedFile = e.target.files[0];
+        // إرسال صورة أو فيديو
+        document.getElementById("file-input").addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file || !auth.currentUser) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                showAlert("الملف كبير جداً. الحد الأقصى هو 5 ميجابايت.");
+                return;
+            }
+
+            const loadingMsg = showLoading("جاري تحميل الملف...");
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    const base64 = reader.result.split(",")[1];
+                    await addDoc(collection(db, "messages"), {
+                        type: file.type.startsWith("image") ? "image" : "video",
+                        content: base64,
+                        sender: auth.currentUser.displayName || "مستخدم",
+                        uid: auth.currentUser.uid,
+                        photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
+                        timestamp: serverTimestamp()
+                    });
+                    hideLoading(loadingMsg);
+                };
+                reader.onerror = () => {
+                    hideLoading(loadingMsg);
+                    showAlert("حدث خطأ أثناء قراءة الملف");
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                hideLoading(loadingMsg);
+                showAlert("خطأ في تحميل الملف: " + error.message);
+            }
+        });
+
+        // تسجيل صوت
+        let mediaRecorder;
+        let audioChunks = [];
+        document.getElementById("record-btn").addEventListener("click", async () => {
+            try {
+                if (!mediaRecorder) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+                        const loadingMsg = showLoading("جاري تحميل التسجيل الصوتي...");
+
+                        try {
+                            const reader = new FileReader();
+                            reader.onload = async () => {
+                                const base64 = reader.result.split(",")[1];
+                                await addDoc(collection(db, "messages"), {
+                                    type: "audio",
+                                    content: base64,
+                                    sender: auth.currentUser.displayName || "مستخدم",
+                                    uid: auth.currentUser.uid,
+                                    photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
+                                    timestamp: serverTimestamp()
+                                });
+                                hideLoading(loadingMsg);
+                                audioChunks = [];
+                            };
+                            reader.onerror = () => {
+                                hideLoading(loadingMsg);
+                                showAlert("حدث خطأ أثناء قراءة التسجيل الصوتي");
+                            };
+                            reader.readAsDataURL(audioBlob);
+                        } catch (error) {
+                            hideLoading(loadingMsg);
+                            showAlert("خطأ في تحميل التسجيل الصوتي: " + error.message);
+                        }
+                    };
+                }
+
+                if (mediaRecorder.state === "recording") {
+                    mediaRecorder.stop();
+                    document.getElementById("record-btn").innerHTML = '<i class="fas fa-microphone"></i>';
+                    document.getElementById("record-btn").style.background = "#2ecc71";
+                } else {
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    document.getElementById("record-btn").innerHTML = '<i class="fas fa-stop"></i>';
+                    document.getElementById("record-btn").style.background = "#e74c3c";
+                }
+            } catch (error) {
+                showAlert("خطأ في تسجيل الصوت: " + error.message);
+            }
         });
 
         // عرض الرسائل
