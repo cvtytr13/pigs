@@ -267,6 +267,8 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
+        let selectedFile = null;
+
         // تسجيل الدخول عبر Google
         document.getElementById("login-google-btn").addEventListener("click", () => {
             signInWithPopup(auth, provider)
@@ -368,16 +370,35 @@
         async function sendMessage() {
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
-            if (message === "" || !auth.currentUser) return;
+            if ((message === "" && !selectedFile) || !auth.currentUser) return;
 
             try {
-                await addDoc(collection(db, "messages"), {
-                    text: message,
-                    sender: auth.currentUser.displayName || "مستخدم",
-                    uid: auth.currentUser.uid,
-                    photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
-                    timestamp: serverTimestamp()
-                });
+                if (selectedFile) {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                        const base64 = reader.result.split(",")[1];
+                        await addDoc(collection(db, "messages"), {
+                            type: selectedFile.type.startsWith("image") ? "image" : "video",
+                            content: base64,
+                            sender: auth.currentUser.displayName || "مستخدم",
+                            uid: auth.currentUser.uid,
+                            photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
+                            timestamp: serverTimestamp()
+                        });
+                        selectedFile = null;
+                    };
+                    reader.readAsDataURL(selectedFile);
+                }
+
+                if (message !== "") {
+                    await addDoc(collection(db, "messages"), {
+                        text: message,
+                        sender: auth.currentUser.displayName || "مستخدم",
+                        uid: auth.currentUser.uid,
+                        photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
+                        timestamp: serverTimestamp()
+                    });
+                }
 
                 messageInput.value = "";
             } catch (error) {
@@ -385,96 +406,9 @@
             }
         }
 
-        // إرسال صورة أو فيديو
-        document.getElementById("file-input").addEventListener("change", async (e) => {
-            const file = e.target.files[0];
-            if (!file || !auth.currentUser) return;
-
-            if (file.size > 5 * 1024 * 1024) {
-                showAlert("الملف كبير جداً. الحد الأقصى هو 5 ميجابايت.");
-                return;
-            }
-
-            const loadingMsg = showLoading("جاري تحميل الملف...");
-
-            try {
-                const reader = new FileReader();
-                reader.onload = async () => {
-                    const base64 = reader.result.split(",")[1];
-                    await addDoc(collection(db, "messages"), {
-                        type: file.type.startsWith("image") ? "image" : "video",
-                        content: base64,
-                        sender: auth.currentUser.displayName || "مستخدم",
-                        uid: auth.currentUser.uid,
-                        photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
-                        timestamp: serverTimestamp()
-                    });
-                    hideLoading(loadingMsg);
-                };
-                reader.onerror = () => {
-                    hideLoading(loadingMsg);
-                    showAlert("حدث خطأ أثناء قراءة الملف");
-                };
-                reader.readAsDataURL(file);
-            } catch (error) {
-                hideLoading(loadingMsg);
-                showAlert("خطأ في تحميل الملف: " + error.message);
-            }
-        });
-
-        // تسجيل صوت
-        let mediaRecorder;
-        let audioChunks = [];
-        document.getElementById("record-btn").addEventListener("click", async () => {
-            try {
-                if (!mediaRecorder) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-                        const loadingMsg = showLoading("جاري تحميل التسجيل الصوتي...");
-
-                        try {
-                            const reader = new FileReader();
-                            reader.onload = async () => {
-                                const base64 = reader.result.split(",")[1];
-                                await addDoc(collection(db, "messages"), {
-                                    type: "audio",
-                                    content: base64,
-                                    sender: auth.currentUser.displayName || "مستخدم",
-                                    uid: auth.currentUser.uid,
-                                    photoURL: auth.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.currentUser.displayName || "مستخدم")}&background=random`,
-                                    timestamp: serverTimestamp()
-                                });
-                                hideLoading(loadingMsg);
-                                audioChunks = [];
-                            };
-                            reader.onerror = () => {
-                                hideLoading(loadingMsg);
-                                showAlert("حدث خطأ أثناء قراءة التسجيل الصوتي");
-                            };
-                            reader.readAsDataURL(audioBlob);
-                        } catch (error) {
-                            hideLoading(loadingMsg);
-                            showAlert("خطأ في تحميل التسجيل الصوتي: " + error.message);
-                        }
-                    };
-                }
-
-                if (mediaRecorder.state === "recording") {
-                    mediaRecorder.stop();
-                    document.getElementById("record-btn").innerHTML = '<i class="fas fa-microphone"></i>';
-                    document.getElementById("record-btn").style.background = "#2ecc71";
-                } else {
-                    audioChunks = [];
-                    mediaRecorder.start();
-                    document.getElementById("record-btn").innerHTML = '<i class="fas fa-stop"></i>';
-                    document.getElementById("record-btn").style.background = "#e74c3c";
-                }
-            } catch (error) {
-                showAlert("خطأ في تسجيل الصوت: " + error.message);
-            }
+        // اختيار ملف
+        document.getElementById("file-input").addEventListener("change", (e) => {
+            selectedFile = e.target.files[0];
         });
 
         // عرض الرسائل
