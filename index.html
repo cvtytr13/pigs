@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -6,214 +6,346 @@
     <title>دردشة فورية</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+        :root {
+            --primary-color: #3498db;
+            --primary-dark: #2980b9;
+            --accent-color: #2ecc71;
+            --light-bg: #f8f9fa;
+            --dark-text: #2c3e50;
+            --light-text: #ecf0f1;
+            --border-color: #e0e0e0;
+            --sent-bg: #3498db;
+            --received-bg: #f1f1f1;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
             margin: 0;
             padding: 0;
-            direction: rtl;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
+        
+        body {
+            background: linear-gradient(135deg, #c9d6ff, #e2e2e2);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
         .container {
+            width: 95%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            overflow: hidden;
+            height: 90vh;
         }
-
+        
         .app-header {
-            background-color: #2ecc71;
-            color: white;
-            padding: 10px;
+            background: var(--primary-color);
+            color: var(--light-text);
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
+        
         .app-title {
-            font-size: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
         }
-
-        .login-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-
-        .login-title {
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        .auth-btn {
-            background-color: #2ecc71;
-            color: white;
+        
+        #logout-btn {
+            background: rgba(255, 255, 255, 0.2);
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
             cursor: pointer;
-            margin-bottom: 10px;
+            transition: all 0.3s;
         }
-
-        .auth-btn:hover {
-            background-color: #27ae60;
+        
+        #logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
-
-        .google-btn {
-            background-color: #db4437;
-        }
-
-        .google-btn:hover {
-            background-color: #c1351d;
-        }
-
-        .or-divider {
-            margin: 15px 0;
-            text-align: center;
-        }
-
+        
         .main-content {
             display: flex;
             flex: 1;
+            overflow: hidden;
         }
-
-        #sidebar {
-            width: 250px;
-            background-color: #2c3e50;
-            color: white;
-            padding: 10px;
-        }
-
-        .user-list-header {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-
-        .user-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .user-avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            margin-left: 10px;
-        }
-
+        
         .chat-section {
             flex: 1;
             display: flex;
             flex-direction: column;
         }
-
+        
         #chat-box {
             flex: 1;
-            padding: 10px;
+            padding: 20px;
             overflow-y: auto;
-            background-color: white;
-        }
-
-        .message {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 5px;
-            max-width: 70%;
-        }
-
-        .sent {
-            background-color: #dcf8c6;
-            margin-left: auto;
-        }
-
-        .received {
-            background-color: #ececec;
-            margin-right: auto;
-        }
-
-        .media-message img, .media-message video {
-            max-width: 100%;
-            border-radius: 5px;
-        }
-
-        .audio-message audio {
-            width: 100%;
-        }
-
-        .message-info {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        #input-area {
+            background: var(--light-bg);
             display: flex;
-            padding: 10px;
-            background-color: #f4f4f4;
+            flex-direction: column;
         }
-
+        
+        .message {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 18px;
+            max-width: 75%;
+            word-wrap: break-word;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .message p {
+            margin: 0;
+        }
+        
+        .sent {
+            background: var(--sent-bg);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .received {
+            background: var(--received-bg);
+            color: var(--dark-text);
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message-info {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        
+        .sent .message-info {
+            text-align: left;
+        }
+        
+        .received .message-info {
+            text-align: right;
+        }
+        
+        #input-area {
+            padding: 15px;
+            background: white;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+        }
+        
         #message-input {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            outline: none;
+            transition: all 0.3s;
         }
-
+        
+        #message-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
         .action-buttons {
             display: flex;
-            align-items: center;
-            margin-left: 10px;
+            gap: 10px;
+            margin-right: 10px;
         }
-
+        
         .icon-btn {
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            padding: 10px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            cursor: pointer;
-            margin-left: 5px;
-        }
-
-        .icon-btn:hover {
-            background-color: #27ae60;
-        }
-
-        .file-label {
-            cursor: pointer;
-            display: inline-flex;
+            border: none;
+            display: flex;
             align-items: center;
             justify-content: center;
-            padding: 8px;
-            background-color: #2ecc71;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--primary-color);
             color: white;
-            border-radius: 50%;
-            transition: background-color 0.3s;
         }
-
-        .file-label:hover {
-            background-color: #27ae60;
+        
+        .icon-btn:hover {
+            background: var(--primary-dark);
         }
-
-        .file-label i {
-            font-size: 18px;
+        
+        #record-btn {
+            background: var(--accent-color);
         }
-
+        
+        #record-btn:hover {
+            background: #27ae60;
+        }
+        
         #file-input {
             display: none;
+        }
+        
+        .file-label {
+            cursor: pointer;
+        }
+        
+        #user-list {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .user-list-header {
+            padding: 10px 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            color: var(--dark-text);
+        }
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .user-item:hover {
+            background: var(--light-bg);
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-left: 10px;
+            object-fit: cover;
+        }
+        
+        .user-name {
+            font-weight: 500;
+            color: var(--dark-text);
+        }
+        
+        .login-section {
+            padding: 30px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .login-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--dark-text);
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .input-group input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .auth-btn:hover {
+            background: var(--primary-dark);
+        }
+        
+        .google-btn {
+            background: #4285F4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .google-btn:hover {
+            background: #3367D6;
+        }
+        
+        .or-divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: #666;
+        }
+        
+        .or-divider::before,
+        .or-divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .or-divider span {
+            padding: 0 10px;
+        }
+        
+        .media-message img,
+        .media-message video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-bottom: 5px;
+        }
+        
+        .audio-message audio {
+            max-width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                height: 100vh;
+                width: 100%;
+                border-radius: 0;
+            }
+            
+            .main-content {
+                flex-direction: column;
+            }
+            
+            #user-list {
+                width: 100%;
+                height: 200px;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
         }
     </style>
 </head>
@@ -223,10 +355,10 @@
             <div class="app-title">دردشة فورية</div>
             <button id="logout-btn">تسجيل الخروج <i class="fas fa-sign-out-alt"></i></button>
         </div>
-
+        
         <div id="auth-container" class="login-section">
             <h1 class="login-title">مرحباً بك في تطبيق الدردشة</h1>
-
+            
             <div id="auth-fields">
                 <div class="input-group">
                     <input type="text" id="name-input" placeholder="الاسم">
@@ -239,44 +371,42 @@
                 </div>
                 <button id="signup-btn" class="auth-btn">إنشاء حساب <i class="fas fa-user-plus"></i></button>
                 <button id="login-email-btn" class="auth-btn">تسجيل الدخول <i class="fas fa-sign-in-alt"></i></button>
-
+                
                 <div class="or-divider">
                     <span>أو</span>
                 </div>
-
+                
                 <button id="login-google-btn" class="auth-btn google-btn">
                     <i class="fab fa-google"></i> تسجيل الدخول عبر Google
                 </button>
             </div>
         </div>
-
+        
         <div id="chat-container" class="main-content" style="display: none;">
-            <div id="sidebar">
+            <div id="user-list">
                 <div class="user-list-header">المستخدمون النشطون</div>
                 <!-- سيتم ملء هذا القسم ديناميكياً -->
             </div>
-
-            <button id="sidebar-toggle" class="icon-btn">
-                <i class="fas fa-bars"></i>
-            </button>
-
+            
             <div class="chat-section">
                 <div id="chat-box">
                     <!-- سيتم ملء هذا القسم ديناميكياً -->
                 </div>
-
+                
                 <div id="input-area">
                     <input type="text" id="message-input" placeholder="اكتب رسالة...">
                     <div class="action-buttons">
                         <label for="file-input" class="file-label">
-                            <i class="fas fa-paperclip"></i>
+                            <button class="icon-btn" type="button">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
                         </label>
                         <input type="file" id="file-input" accept="image/*, video/*">
-
+                        
                         <button id="record-btn" class="icon-btn">
                             <i class="fas fa-microphone"></i>
                         </button>
-
+                        
                         <button id="send-btn" class="icon-btn">
                             <i class="fas fa-paper-plane"></i>
                         </button>
@@ -288,14 +418,14 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import {
-            getAuth,
-            signInWithPopup,
-            GoogleAuthProvider,
-            signOut,
-            onAuthStateChanged,
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
+        import { 
+            getAuth, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            signOut, 
+            onAuthStateChanged, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
             updateProfile
         } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
@@ -371,7 +501,7 @@
         // تحديث حالة المستخدم في Firestore
         async function updateUserStatus(user) {
             if (!user) return;
-
+            
             try {
                 await setDoc(doc(db, "users", user.uid), {
                     displayName: user.displayName || "مستخدم",
@@ -395,7 +525,7 @@
                 document.getElementById("auth-container").style.display = "none";
                 document.getElementById("app-header").style.display = "flex";
                 document.getElementById("chat-container").style.display = "flex";
-
+                
                 // تحديث حالة المستخدم
                 updateUserStatus(user);
             } else {
@@ -482,7 +612,7 @@
                     mediaRecorder.onstop = async () => {
                         const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
                         const loadingMsg = showLoading("جاري تحميل التسجيل الصوتي...");
-
+                        
                         try {
                             const reader = new FileReader();
                             reader.onload = async () => {
@@ -528,20 +658,20 @@
         // عرض الرسائل
         onSnapshot(query(collection(db, "messages"), orderBy("timestamp")), snapshot => {
             const chatBox = document.getElementById("chat-box");
-
+            
             // مسح التنبيه "جاري التحميل..." إذا كان موجوداً
             const loadingElements = chatBox.querySelectorAll('.loading-message');
             loadingElements.forEach(el => el.remove());
-
+            
             snapshot.docChanges().forEach(change => {
                 if (change.type === "added") {
                     const data = change.doc.data();
-
+                    
                     // التحقق من وجود الرسالة بالفعل
                     if (document.getElementById(`msg-${change.doc.id}`)) {
                         return;
                     }
-
+                    
                     const messageDiv = document.createElement("div");
                     messageDiv.classList.add("message");
                     messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
@@ -550,7 +680,7 @@
                     // تنسيق التاريخ
                     const timestamp = data.timestamp ? new Date(data.timestamp.toDate()) : new Date();
                     const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+                    
                     if (data.type === "image") {
                         messageDiv.classList.add("media-message");
                         messageDiv.innerHTML = `
@@ -579,7 +709,7 @@
                     chatBox.appendChild(messageDiv);
                 }
             });
-
+            
             // التمرير إلى أسفل
             chatBox.scrollTop = chatBox.scrollHeight;
         });
@@ -588,19 +718,18 @@
         onSnapshot(collection(db, "users"), snapshot => {
             const userList = document.getElementById("user-list");
             const header = userList.querySelector(".user-list-header");
-
+            
             // إزالة العناصر القديمة مع الحفاظ على العنوان
             while (userList.firstChild) {
                 userList.removeChild(userList.firstChild);
             }
-
+            
             userList.appendChild(header);
-
+            
             snapshot.forEach(doc => {
                 const user = doc.data();
                 const userDiv = document.createElement("div");
                 userDiv.classList.add("user-item");
-                userDiv.dataset.userId = doc.id;
                 userDiv.innerHTML = `
                     <img src="${user.photoURL || 'https://ui-avatars.com/api/?name=مستخدم&background=random'}" alt="صورة المستخدم" class="user-avatar">
                     <span class="user-name">${user.displayName || 'مستخدم'}</span>
@@ -623,9 +752,9 @@
             alertDiv.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
             alertDiv.style.zIndex = "1000";
             alertDiv.textContent = message;
-
+            
             document.body.appendChild(alertDiv);
-
+            
             setTimeout(() => {
                 alertDiv.style.opacity = "0";
                 alertDiv.style.transition = "opacity 0.5s";
@@ -650,26 +779,6 @@
             if (element && element.parentNode) {
                 element.parentNode.removeChild(element);
             }
-        }
-
-        // إضافة وظيفة لفتح وإغلاق القائمة الجانبية
-        document.getElementById("sidebar-toggle").addEventListener("click", () => {
-            const sidebar = document.getElementById("sidebar");
-            sidebar.classList.toggle("open");
-        });
-
-        // إضافة وظيفة لفتح محادثة خاصة
-        document.getElementById("user-list").addEventListener("click", (e) => {
-            const userItem = e.target.closest(".user-item");
-            if (userItem) {
-                const userId = userItem.dataset.userId;
-                openPrivateChat(userId);
-            }
-        });
-
-        async function openPrivateChat(userId) {
-            // هنا يمكنك إضافة الكود لفتح محادثة خاصة مع المستخدم المحدد
-            console.log("فتح محادثة خاصة مع المستخدم:", userId);
         }
     </script>
 </body>
