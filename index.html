@@ -1,366 +1,397 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دردشة فورية</title>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInWithPopup, 
-            GoogleAuthProvider, 
-            signOut, 
-            onAuthStateChanged, 
-            createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword 
-        } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-
-      //  const firebaseConfig = {
-            apiKey: "AIzaSyBuE2ulYBEUbTJmV576FahVii1hTMNZ2XI",
-            authDomain: "messge13.firebaseapp.com",
-            databaseURL: "https://messge13.firebaseio.com",
-            projectId: "messge13",
-            storageBucket: "messge13.firebasestorage.app",
-            messagingSenderId: "192460606316",
-            appId: "1:192460606316:web:2b6025c6a7777804654149"
-        };//
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-
-        // تسجيل الدخول عبر Google
-        document.getElementById("login-google-btn").addEventListener("click", () => {
-            signInWithPopup(auth, provider).catch(error => alert("خطأ: " + error.message));
-        });
-
-        // إنشاء حساب جديد
-        document.getElementById("signup-btn").addEventListener("click", () => {
-            const email = document.getElementById("email-input").value;
-            const password = document.getElementById("password-input").value;
-            const name = document.getElementById("name-input").value;
-
-            createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    // تحديث اسم المستخدم
-                    const user = userCredential.user;
-                    return user.updateProfile({
-                        displayName: name
-                    });
-                })
-                .catch(error => alert("خطأ: " + error.message));
-        });
-
-        // تسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور
-        document.getElementById("login-email-btn").addEventListener("click", () => {
-            const email = document.getElementById("email-input").value;
-            const password = document.getElementById("password-input").value;
-
-            signInWithEmailAndPassword(auth, email, password)
-                .catch(error => alert("خطأ: " + error.message));
-        });
-
-        // تسجيل الخروج
-        document.getElementById("logout-btn").addEventListener("click", () => {
-            signOut(auth);
-        });
-
-        // مراقبة حالة تسجيل الدخول
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                document.getElementById("login-google-btn").style.display = "none";
-                document.getElementById("signup-btn").style.display = "none";
-                document.getElementById("login-email-btn").style.display = "none";
-                document.getElementById("logout-btn").style.display = "block";
-                document.getElementById("chat-box").style.display = "block";
-                document.getElementById("input-area").style.display = "block";
-                document.getElementById("user-list").style.display = "block";
-                document.getElementById("auth-fields").style.display = "none";
-            } else {
-                document.getElementById("login-google-btn").style.display = "block";
-                document.getElementById("signup-btn").style.display = "block";
-                document.getElementById("login-email-btn").style.display = "block";
-                document.getElementById("logout-btn").style.display = "none";
-                document.getElementById("chat-box").style.display = "none";
-                document.getElementById("input-area").style.display = "none";
-                document.getElementById("user-list").style.display = "none";
-                document.getElementById("auth-fields").style.display = "block";
-            }
-        });
-
-        // إرسال رسالة
-        document.getElementById("send-btn").addEventListener("click", async () => {
-            const message = document.getElementById("message-input").value;
-            if (message.trim() === "" || !auth.currentUser) return;
-
-            await addDoc(collection(db, "messages"), {
-                text: message,
-                sender: auth.currentUser.displayName,
-                uid: auth.currentUser.uid,
-                photoURL: auth.currentUser.photoURL,
-                timestamp: serverTimestamp()
-            });
-
-            document.getElementById("message-input").value = "";
-        });
-
-        // إرسال صورة أو فيديو
-        document.getElementById("file-input").addEventListener("change", async (e) => {
-            const file = e.target.files[0];
-            if (!file || !auth.currentUser) return;
-
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const base64 = reader.result.split(",")[1];
-                await addDoc(collection(db, "messages"), {
-                    type: file.type.startsWith("image") ? "image" : "video",
-                    content: base64,
-                    sender: auth.currentUser.displayName,
-                    uid: auth.currentUser.uid,
-                    photoURL: auth.currentUser.photoURL,
-                    timestamp: serverTimestamp()
-                });
-            };
-            reader.readAsDataURL(file);
-        });
-
-        // تسجيل صوت
-        let mediaRecorder;
-        let audioChunks = [];
-        document.getElementById("record-btn").addEventListener("click", async () => {
-            if (!mediaRecorder) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        const base64 = reader.result.split(",")[1];
-                        await addDoc(collection(db, "messages"), {
-                            type: "audio",
-                            content: base64,
-                            sender: auth.currentUser.displayName,
-                            uid: auth.currentUser.uid,
-                            photoURL: auth.currentUser.photoURL,
-                            timestamp: serverTimestamp()
-                        });
-                        audioChunks = [];
-                    };
-                    reader.readAsDataURL(audioBlob);
-                };
-            }
-
-            if (mediaRecorder.state === "recording") {
-                mediaRecorder.stop();
-                document.getElementById("record-btn").innerText = "تسجيل صوت";
-            } else {
-                mediaRecorder.start();
-                document.getElementById("record-btn").innerText = "إيقاف التسجيل";
-            }
-        });
-
-        // عرض الرسائل
-        onSnapshot(query(collection(db, "messages"), orderBy("timestamp")), snapshot => {
-            const chatBox = document.getElementById("chat-box");
-            chatBox.innerHTML = "";
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const messageDiv = document.createElement("div");
-                messageDiv.classList.add("message");
-                messageDiv.classList.add(data.uid === auth.currentUser?.uid ? "sent" : "received");
-
-                if (data.type === "image") {
-                    messageDiv.innerHTML = `
-                        <img src="data:image/jpeg;base64,${data.content}" alt="صورة" loading="lazy" style="max-width: 100%;">
-                        <p>${data.sender}</p>
-                    `;
-                } else if (data.type === "video") {
-                    messageDiv.innerHTML = `
-                        <video controls src="data:video/mp4;base64,${data.content}" style="max-width: 100%;"></video>
-                        <p>${data.sender}</p>
-                    `;
-                } else if (data.type === "audio") {
-                    messageDiv.innerHTML = `
-                        <audio controls src="data:audio/wav;base64,${data.content}"></audio>
-                        <p>${data.sender}</p>
-                    `;
-                } else {
-                    messageDiv.innerHTML = `
-                        <p>${data.sender}: ${data.text}</p>
-                    `;
-                }
-
-                chatBox.appendChild(messageDiv);
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
-
-        // قائمة المستخدمين
-        onSnapshot(collection(db, "users"), snapshot => {
-            const userList = document.getElementById("user-list");
-            userList.innerHTML = "<h3>المستخدمون النشطون</h3>";
-            snapshot.forEach(doc => {
-                const user = doc.data();
-                const userDiv = document.createElement("div");
-                userDiv.innerHTML = `
-                    <img src="${user.photoURL}" alt="صورة المستخدم" style="width: 30px; height: 30px; border-radius: 50%;">
-                    <p>${user.displayName}</p>
-                `;
-                userList.appendChild(userDiv);
-            });
-        });
-    </script>
+    <title>محرك بحث DuckDuckGo</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f0f2f5;
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        
+        body {
+            background-color: #f5f5f5;
+            direction: rtl;
+        }
+        
         .container {
-            width: 90%;
-            max-width: 1200px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            height: 90vh;
-        }
-        #auth-fields {
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
-            background: #f9f9f9;
-            border-bottom: 1px solid #ddd;
         }
-        #auth-fields input {
-            width: 100%;
-            padding: 10px;
-            margin: 5px 0;
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .search-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        #search-input {
+            flex: 1;
+            padding: 12px 15px;
             border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 5px 0 0 5px;
+            font-size: 16px;
         }
-        #auth-fields button {
-            width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            background: #007bff;
+        
+        #search-button {
+            padding: 12px 25px;
+            background-color: #de5833;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 0 5px 5px 0;
             cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
         }
-        #auth-fields button:hover {
-            background: #0056b3;
+        
+        #search-button:hover {
+            background-color: #c94425;
         }
-        #chat-box {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            border-bottom: 1px solid #ddd;
+        
+        .loading {
+            text-align: center;
+            display: none;
+            margin: 20px 0;
         }
-        .message {
-            padding: 10px;
-            margin: 10px;
-            border-radius: 10px;
-            max-width: 70%;
-            word-wrap: break-word;
-        }
-        .sent {
-            background: #007bff;
-            color: white;
-            align-self: flex-end;
-        }
-        .received {
-            background: #f1f1f1;
-            align-self: flex-start;
-        }
-        #input-area {
-            padding: 10px;
-            background: #f9f9f9;
-            display: flex;
-            gap: 10px;
-        }
-        #message-input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        #send-btn, #record-btn, #file-btn {
-            padding: 10px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #send-btn:hover, #record-btn:hover, #file-btn:hover {
-            background: #0056b3;
-        }
-        #user-list {
-            padding: 20px;
-            background: #f9f9f9;
-            border-left: 1px solid #ddd;
-            width: 250px;
-            overflow-y: auto;
-        }
-        #user-list h3 {
-            margin: 0 0 10px 0;
-        }
-        #user-list div {
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-        }
-        #user-list img {
-            width: 30px;
-            height: 30px;
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto;
+            border: 4px solid rgba(0, 0, 0, 0.1);
             border-radius: 50%;
-            margin-right: 10px;
+            border-top: 4px solid #de5833;
+            animation: spin 1s linear infinite;
         }
-        @media (max-width: 768px) {
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #results-container {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        .result-count {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 15px;
+        }
+        
+        .result-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .result-item:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .result-title {
+            font-size: 18px;
+            color: #1a0dab;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .result-title:hover {
+            text-decoration: underline;
+        }
+        
+        .result-content {
+            color: #333;
+            margin-bottom: 5px;
+            line-height: 1.5;
+        }
+        
+        .result-url {
+            color: #006621;
+            font-size: 13px;
+        }
+        
+        .result-source {
+            color: #777;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .no-results {
+            padding: 20px;
+            text-align: center;
+            color: #777;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #777;
+            font-size: 14px;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            padding: 15px;
+            background-color: #fdecea;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        @media (max-width: 600px) {
             .container {
-                flex-direction: column;
-                height: 100vh;
+                padding: 10px;
             }
-            #user-list {
-                width: 100%;
-                border-left: none;
-                border-top: 1px solid #ddd;
+            
+            #search-input, #search-button {
+                font-size: 14px;
+                padding: 10px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="auth-fields">
-            <input type="text" id="name-input" placeholder="الاسم">
-            <input type="email" id="email-input" placeholder="البريد الإلكتروني">
-            <input type="password" id="password-input" placeholder="كلمة المرور">
-            <button id="signup-btn">إنشاء حساب</button>
-            <button id="login-email-btn">تسجيل الدخول</button>
-        </div>
-        <button id="login-google-btn">تسجيل الدخول عبر Google</button>
-        <button id="logout-btn" style="display:none;">تسجيل الخروج</button>
+        <header>
+            <h1>محرك بحث DuckDuckGo</h1>
+            <p>ابحث بأمان باستخدام DuckDuckGo API</p>
+        </header>
         
-        <div id="chat-box" style="display:none;"></div>
-        <div id="user-list" style="display:none;"></div>
-
-        <div id="input-area" style="display:none;">
-            <input type="text" id="message-input" placeholder="اكتب رسالة...">
-            <button id="send-btn">إرسال</button>
-            <input type="file" id="file-input" accept="image/*, video/*" style="display:none;">
-            <button id="file-btn" onclick="document.getElementById('file-input').click()">إرسال صورة/فيديو</button>
-            <button id="record-btn">تسجيل صوت</button>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="ادخل كلمات البحث هنا..." autofocus>
+            <button id="search-button">بحث</button>
         </div>
+        
+        <div id="error-message" class="error-message"></div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>جاري البحث...</p>
+        </div>
+        
+        <div id="results-container"></div>
+        
+        <footer>
+            <p>تم إنشاء هذا المحرك باستخدام DuckDuckGo API المجاني</p>
+        </footer>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // العناصر الرئيسية
+            const searchInput = document.getElementById('search-input');
+            const searchButton = document.getElementById('search-button');
+            const resultsContainer = document.getElementById('results-container');
+            const loadingElement = document.getElementById('loading');
+            const errorMessage = document.getElementById('error-message');
+            
+            // تنفيذ البحث عند الضغط على زر البحث
+            searchButton.addEventListener('click', performSearch);
+            
+            // تنفيذ البحث عند الضغط على Enter
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+            
+            // دالة البحث
+            function performSearch() {
+                const query = searchInput.value.trim();
+                
+                // التحقق من وجود استعلام
+                if (!query) {
+                    showError('الرجاء إدخال كلمات البحث');
+                    return;
+                }
+                
+                // إخفاء أي رسائل خطأ سابقة
+                hideError();
+                
+                // عرض مؤشر التحميل
+                loadingElement.style.display = 'block';
+                
+                // مسح نتائج البحث السابقة
+                resultsContainer.innerHTML = '';
+                
+                // استخدام JSONP للتغلب على قيود CORS مع DuckDuckGo API
+                // ملاحظة: نظرًا لقيود الأمان، نستخدم وسيط CORS (proxy) لتجاوز مشكلة CORS
+                const corsProxy = 'https://corsproxy.io/?';
+                const duckDuckGoUrl = `${corsProxy}${encodeURIComponent(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1&no_html=1&skip_disambig=1`)}`;
+                
+                // إرسال طلب البحث
+                fetch(duckDuckGoUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`فشل الطلب: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // إخفاء مؤشر التحميل
+                        loadingElement.style.display = 'none';
+                        
+                        // معالجة وعرض النتائج
+                        displayResults(data);
+                    })
+                    .catch(error => {
+                        // إخفاء مؤشر التحميل
+                        loadingElement.style.display = 'none';
+                        
+                        // يمكن أن يكون هذا بسبب سياسة CORS أو مشاكل أخرى في الشبكة
+                        showError('حدث خطأ أثناء محاولة البحث. يمكن أن يكون هذا بسبب قيود CORS. جرب استخدام وسيط CORS آخر أو قم بتشغيل المتصفح بإعدادات أمان أقل.');
+                        
+                        // عرض رسالة احتياطية للمستخدم
+                        resultsContainer.innerHTML = `
+                            <div class="no-results">
+                                <p>بسبب قيود CORS، قد لا يعمل هذا المحرك مباشرة في المتصفح.</p>
+                                <p>يمكنك البحث مباشرة على DuckDuckGo بالنقر على الرابط أدناه:</p>
+                                <p><a href="https://duckduckgo.com/?q=${encodeURIComponent(query)}" target="_blank">البحث عن "${query}" على DuckDuckGo</a></p>
+                            </div>
+                        `;
+                        
+                        console.error('Error fetching search results:', error);
+                    });
+            }
+            
+            // دالة عرض النتائج
+            function displayResults(data) {
+                // استخراج النتائج المهمة
+                const parsedResults = parseResults(data);
+                
+                // إذا لم تكن هناك نتائج
+                if (parsedResults.length === 0) {
+                    resultsContainer.innerHTML = '<div class="no-results">لم يتم العثور على نتائج</div>';
+                    return;
+                }
+                
+                // إنشاء عنصر عدد النتائج
+                const resultCountElement = document.createElement('div');
+                resultCountElement.className = 'result-count';
+                resultCountElement.textContent = `تم العثور على ${parsedResults.length} نتيجة`;
+                
+                // مسح النتائج السابقة وإضافة عنصر عدد النتائج
+                resultsContainer.innerHTML = '';
+                resultsContainer.appendChild(resultCountElement);
+                
+                // إنشاء وإضافة عناصر النتائج
+                parsedResults.forEach(result => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'result-item';
+                    
+                    // إنشاء محتوى النتيجة
+                    let resultContent = '';
+                    
+                    // إضافة العنوان مع رابط
+                    if (result.url) {
+                        resultContent += `<a href="${result.url}" class="result-title" target="_blank">${result.title || 'بدون عنوان'}</a>`;
+                    } else {
+                        resultContent += `<span class="result-title">${result.title || 'بدون عنوان'}</span>`;
+                    }
+                    
+                    // إضافة المحتوى
+                    if (result.content) {
+                        resultContent += `<div class="result-content">${result.content}</div>`;
+                    }
+                    
+                    // إضافة الرابط المرئي
+                    if (result.url) {
+                        resultContent += `<div class="result-url">${result.url}</div>`;
+                    }
+                    
+                    // إضافة المصدر
+                    if (result.source) {
+                        resultContent += `<div class="result-source">المصدر: ${result.source}</div>`;
+                    }
+                    
+                    // تعيين المحتوى للعنصر
+                    resultElement.innerHTML = resultContent;
+                    
+                    // إضافة النتيجة إلى حاوية النتائج
+                    resultsContainer.appendChild(resultElement);
+                });
+            }
+            
+            // دالة تحليل النتائج واستخراج المعلومات المهمة
+            function parseResults(results) {
+                const parsedResults = [];
+                
+                // إضافة النتائج الفورية إذا وجدت
+                if (results.Abstract) {
+                    parsedResults.push({
+                        title: results.Heading || 'نتيجة فورية',
+                        content: results.Abstract,
+                        source: results.AbstractSource,
+                        url: results.AbstractURL
+                    });
+                }
+                
+                // إضافة المواضيع ذات الصلة
+                if (results.RelatedTopics && Array.isArray(results.RelatedTopics)) {
+                    results.RelatedTopics.forEach(topic => {
+                        // تخطي المواضيع التي تحتوي على مواضيع فرعية
+                        if (topic.Topics) {
+                            return;
+                        }
+                        
+                        const topicText = topic.Text || '';
+                        let title = topicText;
+                        let content = '';
+                        
+                        // محاولة فصل العنوان عن المحتوى (إذا كان النص يحتوي على " - ")
+                        if (topicText.includes(' - ')) {
+                            const parts = topicText.split(' - ');
+                            title = parts[0];
+                            content = parts.slice(1).join(' - ');
+                        }
+                        
+                        parsedResults.push({
+                            title: title,
+                            content: content,
+                            url: topic.FirstURL || ''
+                        });
+                    });
+                }
+                
+                return parsedResults;
+            }
+            
+            // دالة عرض رسالة خطأ
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            // دالة إخفاء رسالة الخطأ
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
