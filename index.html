@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محرك بحث DuckDuckGo</title>
+    <title>محررك بحث DuckDuckGo</title>
     <style>
         * {
             box-sizing: border-box;
@@ -203,48 +203,34 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // العناصر الرئيسية
             const searchInput = document.getElementById('search-input');
             const searchButton = document.getElementById('search-button');
             const resultsContainer = document.getElementById('results-container');
             const loadingElement = document.getElementById('loading');
             const errorMessage = document.getElementById('error-message');
             
-            // تنفيذ البحث عند الضغط على زر البحث
             searchButton.addEventListener('click', performSearch);
-            
-            // تنفيذ البحث عند الضغط على Enter
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     performSearch();
                 }
             });
             
-            // دالة البحث
             function performSearch() {
                 const query = searchInput.value.trim();
                 
-                // التحقق من وجود استعلام
                 if (!query) {
                     showError('الرجاء إدخال كلمات البحث');
                     return;
                 }
                 
-                // إخفاء أي رسائل خطأ سابقة
                 hideError();
-                
-                // عرض مؤشر التحميل
                 loadingElement.style.display = 'block';
-                
-                // مسح نتائج البحث السابقة
                 resultsContainer.innerHTML = '';
                 
-                // استخدام JSONP للتغلب على قيود CORS مع DuckDuckGo API
-                // ملاحظة: نظرًا لقيود الأمان، نستخدم وسيط CORS (proxy) لتجاوز مشكلة CORS
-                const corsProxy = 'https://corsproxy.io/?';
-                const duckDuckGoUrl = `${corsProxy}${encodeURIComponent(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1&no_html=1&skip_disambig=1`)}`;
+                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+                const duckDuckGoUrl = `${corsProxy}https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1&no_html=1&skip_disambig=1`;
                 
-                // إرسال طلب البحث
                 fetch(duckDuckGoUrl)
                     .then(response => {
                         if (!response.ok) {
@@ -253,20 +239,12 @@
                         return response.json();
                     })
                     .then(data => {
-                        // إخفاء مؤشر التحميل
                         loadingElement.style.display = 'none';
-                        
-                        // معالجة وعرض النتائج
                         displayResults(data);
                     })
                     .catch(error => {
-                        // إخفاء مؤشر التحميل
                         loadingElement.style.display = 'none';
-                        
-                        // يمكن أن يكون هذا بسبب سياسة CORS أو مشاكل أخرى في الشبكة
                         showError('حدث خطأ أثناء محاولة البحث. يمكن أن يكون هذا بسبب قيود CORS. جرب استخدام وسيط CORS آخر أو قم بتشغيل المتصفح بإعدادات أمان أقل.');
-                        
-                        // عرض رسالة احتياطية للمستخدم
                         resultsContainer.innerHTML = `
                             <div class="no-results">
                                 <p>بسبب قيود CORS، قد لا يعمل هذا المحرك مباشرة في المتصفح.</p>
@@ -274,74 +252,57 @@
                                 <p><a href="https://duckduckgo.com/?q=${encodeURIComponent(query)}" target="_blank">البحث عن "${query}" على DuckDuckGo</a></p>
                             </div>
                         `;
-                        
                         console.error('Error fetching search results:', error);
                     });
             }
             
-            // دالة عرض النتائج
             function displayResults(data) {
-                // استخراج النتائج المهمة
                 const parsedResults = parseResults(data);
                 
-                // إذا لم تكن هناك نتائج
                 if (parsedResults.length === 0) {
                     resultsContainer.innerHTML = '<div class="no-results">لم يتم العثور على نتائج</div>';
                     return;
                 }
                 
-                // إنشاء عنصر عدد النتائج
                 const resultCountElement = document.createElement('div');
                 resultCountElement.className = 'result-count';
                 resultCountElement.textContent = `تم العثور على ${parsedResults.length} نتيجة`;
                 
-                // مسح النتائج السابقة وإضافة عنصر عدد النتائج
                 resultsContainer.innerHTML = '';
                 resultsContainer.appendChild(resultCountElement);
                 
-                // إنشاء وإضافة عناصر النتائج
                 parsedResults.forEach(result => {
                     const resultElement = document.createElement('div');
                     resultElement.className = 'result-item';
                     
-                    // إنشاء محتوى النتيجة
                     let resultContent = '';
                     
-                    // إضافة العنوان مع رابط
                     if (result.url) {
                         resultContent += `<a href="${result.url}" class="result-title" target="_blank">${result.title || 'بدون عنوان'}</a>`;
                     } else {
                         resultContent += `<span class="result-title">${result.title || 'بدون عنوان'}</span>`;
                     }
                     
-                    // إضافة المحتوى
                     if (result.content) {
                         resultContent += `<div class="result-content">${result.content}</div>`;
                     }
                     
-                    // إضافة الرابط المرئي
                     if (result.url) {
                         resultContent += `<div class="result-url">${result.url}</div>`;
                     }
                     
-                    // إضافة المصدر
                     if (result.source) {
                         resultContent += `<div class="result-source">المصدر: ${result.source}</div>`;
                     }
                     
-                    // تعيين المحتوى للعنصر
                     resultElement.innerHTML = resultContent;
-                    
-                    // إضافة النتيجة إلى حاوية النتائج
                     resultsContainer.appendChild(resultElement);
                 });
             }
             
-            // دالة تحليل النتائج واستخراج المعلومات المهمة
             function parseResults(results) {
                 const parsedResults = [];
                 
-                // إضافة النتائج الفورية إذا وجدت
                 if (results.Abstract) {
                     parsedResults.push({
                         title: results.Heading || 'نتيجة فورية',
@@ -351,10 +312,8 @@
                     });
                 }
                 
-                // إضافة المواضيع ذات الصلة
                 if (results.RelatedTopics && Array.isArray(results.RelatedTopics)) {
                     results.RelatedTopics.forEach(topic => {
-                        // تخطي المواضيع التي تحتوي على مواضيع فرعية
                         if (topic.Topics) {
                             return;
                         }
@@ -363,7 +322,6 @@
                         let title = topicText;
                         let content = '';
                         
-                        // محاولة فصل العنوان عن المحتوى (إذا كان النص يحتوي على " - ")
                         if (topicText.includes(' - ')) {
                             const parts = topicText.split(' - ');
                             title = parts[0];
@@ -381,13 +339,11 @@
                 return parsedResults;
             }
             
-            // دالة عرض رسالة خطأ
             function showError(message) {
                 errorMessage.textContent = message;
                 errorMessage.style.display = 'block';
             }
             
-            // دالة إخفاء رسالة الخطأ
             function hideError() {
                 errorMessage.style.display = 'none';
             }
