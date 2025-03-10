@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محررك بحث DuckDuckGo</title>
+    <title>محرك بحث DuckDuckGo</title>
     <style>
         * {
             box-sizing: border-box;
@@ -178,7 +178,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>محررك بحث DuckDuckGo</h1>
+            <h1>محرك بحث DuckDuckGo</h1>
             <p>ابحث بأمان باستخدام DuckDuckGo API</p>
         </header>
         
@@ -228,7 +228,8 @@
                 loadingElement.style.display = 'block';
                 resultsContainer.innerHTML = '';
                 
-                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+                // استخدام وسيط CORS مختلف
+                const corsProxy = 'https://api.codetabs.com/v1/proxy/?quest=';
                 const duckDuckGoUrl = `${corsProxy}https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1&no_html=1&skip_disambig=1`;
                 
                 fetch(duckDuckGoUrl)
